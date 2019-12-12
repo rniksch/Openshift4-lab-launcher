@@ -16,10 +16,16 @@ Metadata:
           - VPCCIDR
           - PublicSubnetCIDR
       - Label:
-          default: Lab Information
+          default: Lab information
         Parameters:
             - OpenShiftVersion
-            - NumStudents
+            - StudentNum
+            - MasterStack
+      - Label:
+          default: Cloud9 information
+          Parameters:
+            - Cloud9AutoStopInMin
+            - Cloud9InstanceType
       - Label:
           default: AWS Quick Start Configuration
         Parameters:
@@ -40,8 +46,14 @@ Metadata:
         default: VPC CIDR
       OpenShiftVersion:
         default: OpenShift version
-      NumStudents:
-        default: Number of students
+      MasterStack:
+        default: Master CloudFormation StackName
+      StudentNum:
+        default: Student Number for Lab ID
+      Cloud9AutoStopInMin:
+        default: Cloud9 automatic stop time in minutes
+      Cloud9InstanceType:
+        default: Cloud9 instance type
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3KeyPrefix:
@@ -88,24 +100,26 @@ Parameters:
       - "4.2"
     Default: "3.11"
     Type: String
-  NumStudents:
-    Description: The number of student environments to provision for the lab.
-    AllowedValues:
-      - 1
-      - 5
-      - 10
-      - 15
-      - 20
-      - 25
-      - 30
-      - 35
-      - 40
-      - 45
-      - 50
-      - 75
-      - 100
+  StudentNum:
+    Description: The number of which student environment to provision for the lab.
     Default: 1
     Type: Number
+  MasterStack:
+    Description: The Master Stack of which is calling this student Cloud Formation stack
+      for identification.
+    Default: Master
+    Type: String
+  Cloud9AutoStopInMin:
+    Description: The time the Cloud9 instance is automatically stopped after no use.
+    Default: 30
+    Type: Number
+  Cloud9InstanceType:
+    Description: Instance size of the Cloud9 instance for the student
+    AllowedPattern: ^[a-z][1-9][.][a-z0-9]+$
+    MinLength: '5'
+    MaxLength: '20'
+    Default: "t2.micro"
+    Type: String
   QSS3BucketName:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -123,7 +137,7 @@ Parameters:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
     ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
       uppercase letters, hyphens (-), and forward slash (/).
-    Default: quickstart-jfrog-artifactory/
+    Default: aws-ocp/
     Type: String
 Resources:
   VPCStack:
@@ -137,3 +151,25 @@ Resources:
             Ref: PublicSubnetCIDR
         VPCCIDR:
           Ref: VPCCIDR
+  Cloud9Instance:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties: 
+      AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
+      Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
+      InstanceType: !Ref Cloud9InstanceType
+      Name: !Sub '${MasterStack}-${StudentNum}'
+      #OwnerArn: String
+      #Repositories: 
+      #  - Repository
+      SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
+Outputs:
+  AccessCIDR:
+    Value: !Ref AccessCIDR
+  RemoteAccessCIDR:
+    Value: !Ref RemoteAccessCIDR
+  KeyPairName:
+    Value: !Ref KeyPairName
+  OpenShiftVersion:
+    Value: !Ref OpenShiftVersion
+  Cloud9InstanceArn:
+    Value: !GetAtt Cloud9Instance.Arn

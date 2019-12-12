@@ -40,7 +40,7 @@ Parameters:
     Type: String
   VPCTenancy:
     Description: "The allowed tenancy of instances launched into the VPC"
-    AlllowedValues:
+    AllowedValues:
       - default
       - dedicated
     Default: default
@@ -76,15 +76,15 @@ Resources:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        Key: Name
-        Value: !Ref AWS::StackName
+        - Key: Name
+          Value: !Ref AWS::StackName
   VPCGatewayAttach:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
   PublicSubnet:
-    Type: AWS::EC2::subnet
+    Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref PublicSubnetCIDR
