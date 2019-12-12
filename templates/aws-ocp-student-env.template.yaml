@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'JFrog Artifactory Quick Start Deployment'
+Description: 'AWS Red Hat OCP Lab Student deployment'
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
