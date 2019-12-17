@@ -13,7 +13,6 @@ tests:
 #      - us-west-2
   aws-ocp-3-11:
     parameters:
-      KeyPairName: "$[taskcat_getkeypair]"
       RemoteAccessCIDR: "0.0.0.0/16"
       AccessCIDR: "0.0.0.0/16"
       StudentNum: "$[taskcat_random-numbers]"
