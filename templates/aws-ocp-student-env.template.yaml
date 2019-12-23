@@ -64,7 +64,6 @@ Metadata:
         default: Quick Start S3 bucket name
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
-
 Parameters:
   VPCCIDR:
     Description: The CIDR block for the VPC.
@@ -153,7 +152,6 @@ Parameters:
       uppercase letters, hyphens (-), and forward slash (/).
     Default: aws-ocp/
     Type: String
-
 Resources:
   VPCStack:
     Type: AWS::CloudFormation::Stack
