@@ -116,7 +116,7 @@ Parameters:
       Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
       Type: AWS::EC2::Image::Id
   IgnitionLocation:
-    Default: s3://my-s3-bucket/
+    Default: s3://my-s3-bucket/myfolder
     Description: Ignition S3 bucket and or folder location in which bootstrap.ign will be added to.
     Type: String
   HostedZoneName:

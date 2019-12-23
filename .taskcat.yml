@@ -13,11 +13,11 @@ tests:
 #      - us-west-2
   aws-ocp-4-2:
     parameters:
-      RemoteAccessCIDR: "107.145.55.108/32"
+      RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address
       StudentNum: "$[taskcat_random-numbers]"
-      ClusterName: trace3-test3
+      ClusterName: trace3-test3               # This must be unique for each deployment
       RhcosAmi: "ami-08e10b201e19fd5e7"
-      IgnitionLocation: s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/
+      IgnitionLocation: s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/ #Bucket/File of ignition files
       HostedZoneName: openshift.awsworkshop.io
       QSS3BucketName: "$[taskcat_autobucket]"
       QSS3KeyPrefix: "aws-ocp/"
