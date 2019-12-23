@@ -1,0 +1,67 @@
+project:
+  name: aws-ocp
+  owner: quickstart-eng@amazon.com
+  package_lambda: false
+  regions:
+    - us-west-2
+
+tests:
+#  aws-ocp-master:
+#    parameter_input: aws-ocp-master.json
+#    template_file: aws-ocp-master.template.yaml
+#    regions:
+#      - us-west-2
+  aws-ocp-4-2:
+    parameters:
+      RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address
+      StudentNum: "$[taskcat_random-numbers]"
+      ClusterName: trace3-test3               # This must be unique for each deployment
+      RhcosAmi: "ami-08e10b201e19fd5e7"
+      IgnitionLocation: s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/ #Bucket/File of ignition files
+      HostedZoneName: openshift.awsworkshop.io
+      QSS3BucketName: "$[taskcat_autobucket]"
+      QSS3KeyPrefix: "aws-ocp/"
+    template: templates/aws-ocp-student-env.template.yaml
+    regions:
+      - us-west-2
+#  aws-network:
+#    parameters:
+#      ClusterName: "trace3-test3"
+#      InfrastructureName: "trace3-test3"
+#      VpcId: "vpc-025937009759a4fb5"
+#      PrivateSubnetId: "subnet-0bfb13ce017f5beb9"
+      #HostedZoneId: Z3S2KL7IIXHCNP
+#      HostedZoneName: openshift.awsworkshop.io
+#    template: templates/aws-ocp-student-network.template.yaml
+#  aws-bootstrap:
+#    parameters:
+#      InstanceName: bootstrap
+#      BootstrapIgnitionLocation: 's3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/bootstrap.ign'
+#      InfrastructureName: 'trace3-test3'
+#      ApiTargetGroupArn: 'arn:aws:elasticloadbalancing:us-west-2:755152575036:targetgroup/tCaT-Inter-UP0VFCP8DEOV/8b655be484e01ff1'
+#      ServiceTargetGroupArn: 'arn:aws:elasticloadbalancing:us-west-2:755152575036:targetgroup/tCaT-Inter-1E6VJKPPLUX2U/e0eb1eed6158d8bb'
+#      HostedZoneName: "trace3-test3.openshift.awsworkshop.io"
+#      HostedZoneId: "Z01852588AV0KUNOQES4"
+#      InstanceType: "i3.large"
+#      MasterSecurityGroupId: 'sg-0362175e830f16112'
+#      SubnetId: 'subnet-0425a1b051757676b'
+#      RegisterNlbIpTargetsLambdaArn: 'arn:aws:lambda:us-west-2:755152575036:function:tCaT-aws-ocp-aws-ocp-4-2-be60-RegisterNlbIpTargets-1HF5ORPREGFYH'
+#      RhcosAmi: 'ami-08e10b201e19fd5e7'
+#      ControlPlane: "no"
+#    template: templates/aws-ocp-student-instance.template.yaml
+#  aws-master:
+#    parameters:
+#      InstanceName: AIO
+#      BootstrapIgnitionLocation: "s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/master.ign"
+#      InfrastructureName: "trace3-test3"
+#      ApiTargetGroupArn: "arn:aws:elasticloadbalancing:us-west-2:755152575036:targetgroup/tCaT-Inter-UP0VFCP8DEOV/8b655be484e01ff1"
+#      ServiceTargetGroupArn: "arn:aws:elasticloadbalancing:us-west-2:755152575036:targetgroup/tCaT-Inter-1E6VJKPPLUX2U/e0eb1eed6158d8bb"
+#      HostedZoneName: "trace3-test3.openshift.awsworkshop.io"
+#      HostedZoneId: "Z01852588AV0KUNOQES4"
+#      InstanceType: "m4.xlarge"
+#      MasterSecurityGroupId: "sg-0362175e830f16112"
+#      SubnetId: "subnet-0425a1b051757676b"
+#      RegisterNlbIpTargetsLambdaArn: "arn:aws:lambda:us-west-2:755152575036:function:tCaT-aws-ocp-aws-ocp-4-2-be60-RegisterNlbIpTargets-1HF5ORPREGFYH"
+#      RhcosAmi: "ami-08e10b201e19fd5e7"
+#      ControlPlane: "yes"
+#    template: "templates/aws-ocp-student-instance.template.yaml"

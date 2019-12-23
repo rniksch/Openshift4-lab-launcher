@@ -1,0 +1,288 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for OpenShift Cluster Network Elements (Route53 & LBs)'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Cluster Information"
+      Parameters:
+      - ClusterName
+      - InfrastructureName
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+      - VpcId
+      - SubnetId
+    - Label:
+        default: "DNS"
+      Parameters:
+      - HostedZoneName
+    ParameterLabels:
+      ClusterName:
+        default: "Cluster Name"
+      InfrastructureName:
+        default: "Infrastructure Name"
+      VpcId:
+        default: "VPC ID"
+      SubnetId:
+        default: "Private Subnets"
+      HostedZoneName:
+        default: "Public Hosted Zone Name"
+Parameters:
+  ClusterName:
+    Description: A short, representative cluster name to use for host names and other identifying names.
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    MaxLength: 27
+    MinLength: 1
+    Type: String
+  InfrastructureName:
+    Description: A short, unique cluster ID used to tag cloud resources and identify items owned or used by the cluster.
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    ConstraintDescription: Infrastructure name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    MaxLength: 27
+    MinLength: 1
+    Type: String
+  HostedZoneName:
+    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+    Default: "example.com"
+    Type: String
+  SubnetId:
+    Description: The subnet.
+    Type: AWS::EC2::Subnet::Id
+  VpcId:
+    Description: The VPC-scoped resources will belong to this VPC.
+    Type: AWS::EC2::VPC::Id
+Resources:
+  Dns:
+    Type: "AWS::Route53::HostedZone"
+    Properties:
+      HostedZoneConfig:
+        Comment: "Managed by CloudFormation"
+      Name: !Join [".", [!Ref ClusterName, !Ref HostedZoneName]]
+      HostedZoneTags:
+      - Key: Name
+        Value: !Join ["-", [!Ref InfrastructureName, "int"]]
+      - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
+        Value: "owned"
+      VPCs:
+      - VPCId: !Ref VpcId
+        VPCRegion: !Ref "AWS::Region"
+  AIOElb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ["-", [!Ref InfrastructureName, "int"]]
+      IpAddressType: ipv4
+      Subnets: 
+        - !Ref SubnetId
+      Type: network
+  ApiServerRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      Comment: Alias record for the API server
+      HostedZoneId: !Ref Dns
+      RecordSets:
+      - Name:
+          !Join [
+            ".",
+            ["api", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
+          ]
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt AIOElb.CanonicalHostedZoneID
+          DNSName: !GetAtt AIOElb.DNSName
+      - Name:
+          !Join [
+            ".",
+            ["api-int", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
+          ]
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt AIOElb.CanonicalHostedZoneID
+          DNSName: !GetAtt AIOElb.DNSName
+      - Name:
+          !Join [
+            ".",
+            ["*.apps", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
+          ]
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt AIOElb.CanonicalHostedZoneID
+          DNSName: !GetAtt AIOElb.DNSName
+  ApiTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 6443
+      Protocol: TCP
+      TargetType: ip
+      VpcId:
+        Ref: VpcId
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: "60"
+  ApiListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: ApiTargetGroup
+      LoadBalancerArn:
+        Ref: AIOElb
+      Port: 6443
+      Protocol: TCP
+  ServiceTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 22623
+      Protocol: TCP
+      TargetType: ip
+      VpcId:
+        Ref: VpcId
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: "60"
+  ServiceInternalListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: ServiceTargetGroup
+      LoadBalancerArn:
+        Ref: AIOElb
+      Port: 22623
+      Protocol: TCP
+  WebTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: TCP
+      TargetType: ip
+      VpcId:
+        Ref: VpcId
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: "60"
+  WebListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: WebTargetGroup
+      LoadBalancerArn:
+        Ref: AIOElb
+      Port: 80
+      Protocol: TCP
+  WebSSLTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 443
+      Protocol: TCP
+      TargetType: ip
+      VpcId:
+        Ref: VpcId
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: "60"
+  WebSSLListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: WebSSLTargetGroup
+      LoadBalancerArn:
+        Ref: AIOElb
+      Port: 443
+      Protocol: TCP
+  RegisterTargetLambdaIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref InfrastructureName, "nlb", "lambda", "role"]]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "lambda.amazonaws.com"
+          Action:
+          - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+      - PolicyName: !Join ["-", [!Ref InfrastructureName, "master", "policy"]]
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+              [
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+              ]
+            Resource: !Ref ApiTargetGroup
+          - Effect: "Allow"
+            Action:
+              [
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+              ]
+            Resource: !Ref ServiceTargetGroup
+          - Effect: "Allow"
+            Action:
+              [
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+              ]
+            Resource: !Ref WebTargetGroup
+          - Effect: "Allow"
+            Action:
+              [
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+              ]
+            Resource: !Ref WebSSLTargetGroup
+  RegisterNlbIpTargets:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "index.handler"
+      Role:
+        Fn::GetAtt:
+        - "RegisterTargetLambdaIamRole"
+        - "Arn"
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+          def handler(event, context):
+            elb = boto3.client('elbv2')
+            if event['RequestType'] == 'Delete':
+              elb.deregister_targets(TargetGroupArn=event['ResourceProperties']['TargetArn'],Targets=[{'Id': event['ResourceProperties']['TargetIp']}])
+            elif event['RequestType'] == 'Create':
+              elb.register_targets(TargetGroupArn=event['ResourceProperties']['TargetArn'],Targets=[{'Id': event['ResourceProperties']['TargetIp']}])
+            responseData = {}
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, event['ResourceProperties']['TargetArn']+event['ResourceProperties']['TargetIp'])
+      Runtime: "python3.7"
+      Timeout: 120
+Outputs:
+  HostedZoneId:
+    Description: Hosted zone ID for the private DNS, which is required for private records.
+    Value: !Ref Dns
+  RegisterNlbIpTargetsLambda:
+    Description: Lambda ARN useful to help register or deregister IP targets for these load balancers.
+    Value: !GetAtt RegisterNlbIpTargets.Arn
+  ApiTargetGroupArn:
+    Description: ARN of the internal API target group.
+    Value: !Ref ApiTargetGroup
+  ServiceTargetGroupArn:
+    Description: ARN of the internal service target group.
+    Value: !Ref ServiceTargetGroup
+  WebTargetGroupArn:
+    Description: ARN of the external Web target group.
+    Value: !Ref WebTargetGroup
+  WebSSLTargetGroupArn:
+    Description: ARN of the external Web target group.
+    Value: !Ref WebSSLTargetGroup

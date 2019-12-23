@@ -52,6 +52,9 @@ NOTE: We have seen issues running taskcat under the following conditions, please
 Then you need to be above the repository directory and execute, with make: `make test`. Without make:
 `taskcat -c aws-ocp/ci/config.yml`. Notice it is outside the actual repository.
 
+When running a lot of tests, the S3 buckets can begin to add up. To clean up all Taskcat buckets you can run the following:
+`aws s3 ls | grep taskcat | cut -d ' ' -f 3 | xargs -I {} aws s3 rb s3://{} --force`
+
 ## OCP 3.x
 
 ## OCP 4.x

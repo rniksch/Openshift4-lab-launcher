@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for OpenShift Cluster Control Plane Master (EC2 Instance, Security Groups and IAM)'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Cluster Information"
+      Parameters:
+      - InfrastructureName
+    - Label:
+        default: "Host Information"
+      Parameters:
+      - InstanceName
+      - InstanceType
+      - RhcosAmi
+      - BootstrapIgnitionLocation
+      - ControlPlane
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+      - SubnetId
+      - MasterSecurityGroupId
+      - HostedZoneName
+      - HostedZoneId
+    - Label:
+        default: "Load Balancer Automation"
+      Parameters:
+      - RegisterNlbIpTargetsLambdaArn
+      - ApiTargetGroupArn
+      - ServiceTargetGroupArn
+    ParameterLabels:
+      InstanceName:
+        default: "Instance Name"
+      InfrastructureName:
+        default: "Infrastructure Name"
+      SubnetId:
+        default: "Subnet"
+      InstanceType:
+        default: "Instance Type"
+      RhcosAmi:
+        default: "Red Hat Enterprise Linux CoreOS AMI ID"
+      MasterSecurityGroupId:
+        default: "Master Security Group ID"
+      HostedZoneName:
+        default: "Hosted Zone Name"
+      HostedZoneId:
+        default: "Hosted Zone ID"
+      BootstrapIgnitionLocation:
+        default: "Bootstrap ignition location"
+      RegisterNlbIpTargetsLambdaArn:
+        default: "Internal Network Load Balancer Update Lambda Arn"
+      ApiTargetGroupArn:
+        default: "API Group Arn"
+      ServiceTargetGroupArn:
+        default: "Service Target Group Arn"
+      ControlPlane:
+        default: "Control plane instance"
+
+Parameters:
+  InstanceName:
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    MaxLength: 27
+    MinLength: 1
+    ConstraintDescription: Name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    Description: A short, unique node name for the instance
+    Type: String
+  InfrastructureName:
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    MaxLength: 27
+    MinLength: 1
+    ConstraintDescription: Infrastructure name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    Description: A short, unique cluster ID used to tag nodes for the kubelet cloud provider.
+    Type: String
+  RhcosAmi:
+    Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
+    Type: AWS::EC2::Image::Id
+  SubnetId:
+    Description: The subnets, recommend private, to launch the node into.
+    Type: AWS::EC2::Subnet::Id
+  MasterSecurityGroupId:
+    Description: The master security group ID to associate with nodes.
+    Type: AWS::EC2::SecurityGroup::Id
+  InstanceType:
+    Description: EC2 instance size for the node
+    Default: "m4.xlarge"
+    AllowedValues:
+    - "i3.large"
+    - "m4.xlarge"
+    - "m4.2xlarge"
+    - "m4.4xlarge"
+    - "m4.10xlarge"
+    - "m4.16xlarge"
+    - "c4.2xlarge"
+    - "c4.4xlarge"
+    - "c4.8xlarge"
+    - "r4.xlarge"
+    - "r4.2xlarge"
+    - "r4.4xlarge"
+    - "r4.8xlarge"
+    - "r4.16xlarge"
+    Type: String
+  BootstrapIgnitionLocation:
+    Default: s3://my-s3-bucket/bootstrap.ign
+    Description: Ignition config file location.
+    Type: String
+  RegisterNlbIpTargetsLambdaArn:
+    Description: ARN for NLB IP target registration lambda.
+    Type: String
+  ApiTargetGroupArn:
+    Description: ARN for the API load balancer target group.
+    Type: String
+  ServiceTargetGroupArn:
+    Description: ARN for the service load balancer target group.
+    Type: String
+  HostedZoneId:
+    Description: The Route53 zone ID to register the etcd targets with, such as Z21IXYZABCZ2A4.
+    Type: String
+  HostedZoneName:
+    Description: The Route53 zone to register the targets with, such as cluster.example.com. Omit the trailing period.
+    Type: String
+  ControlPlane:
+    Description: Whether to register ectd Records or not
+    Default: "yes"
+    AllowedValues:
+    - "yes"
+    - "no"
+    Type: String
+
+Conditions:
+  DoRegistration: !Equals ["yes", !Ref ControlPlane]
+
+Resources:
+  IamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+          Action:
+          - "sts:AssumeRole"
+
+      Policies:
+      - PolicyName: !Join ["-", [!Ref InfrastructureName, "master", "policy"]]
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action: "ec2:*"
+            Resource: "*"
+          - Effect: "Allow"
+            Action: "elasticloadbalancing:*"
+            Resource: "*"
+          - Effect: "Allow"
+            Action: "iam:PassRole"
+            Resource: "*"
+          - Effect: "Allow"
+            Action: "s3:GetObject"
+            Resource: "*"
+
+  InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+      - Ref: "IamRole"
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref RhcosAmi
+      BlockDeviceMappings:
+      - DeviceName: /dev/xvda
+        Ebs:
+          VolumeSize: 120
+          VolumeType: "gp2"
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceType: !Ref InstanceType
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: True
+        DeviceIndex: "0"
+        GroupSet:
+        - !Ref "MasterSecurityGroupId"
+        SubnetId: !Ref "SubnetId"
+      UserData:
+        Fn::Base64: !Sub
+        - '{"ignition":{"config":{"replace":{"source":"${S3Loc}","verification":{}}},"timeouts":{},"version":"2.1.0"},"networkd":{},"passwd":{},"storage":{},"systemd":{}}'
+        - {
+          S3Loc: !Ref BootstrapIgnitionLocation
+        }
+      Tags:
+      - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
+        Value: "shared"
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-${InstanceName}
+
+  RegisterApiTarget:
+    Type: Custom::NLBRegister
+    Properties:
+      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+      TargetArn: !Ref ApiTargetGroupArn
+      TargetIp: !GetAtt Instance.PrivateIp
+
+  RegisterServiceTarget:
+    Type: Custom::NLBRegister
+    Properties:
+      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+      TargetArn: !Ref ServiceTargetGroupArn
+      TargetIp: !GetAtt Instance.PrivateIp
+
+  Etcd0Record:
+    Condition: DoRegistration
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Join [".", ["etcd-0", !Ref HostedZoneName]]
+      ResourceRecords:
+      - !GetAtt Instance.PrivateIp
+      TTL: "60"
+      Type: A
+
+  EtcdSrvRecords:
+    Condition: DoRegistration
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Join [".", ["_etcd-server-ssl._tcp", !Ref HostedZoneName]]
+      ResourceRecords:
+      - !Join [
+        " ",
+        ["0 10 2380", !Join [".", ["etcd-0", !Ref HostedZoneName]]],
+      ]
+      TTL: "60"
+      Type: SRV
+Outputs:
+  InstanceId:
+    Description: Instance ID.
+    Value: !Ref Instance
+
+  PublicIp:
+    Description: The node public IP address.
+    Value: !GetAtt Instance.PublicIp
+
+  PrivateIp:
+    Description: The node private IP address.
+    Value: !GetAtt Instance.PrivateIp

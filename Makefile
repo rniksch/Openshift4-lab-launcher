@@ -11,17 +11,17 @@ help:
 	@echo   "make test  : executes taskcat"
 
 create:
-	aws cloudformation create-stack --stack-name test --template-body file://$(pwd)/templates/jfrog-artifactory-ec2-new-vpc.template --parameters $(cat .ignore/params) --capabilities CAPABILITY_IAM
+	aws cloudformation create-stack --stack-name test --template-body file://$(pwd)/templates/aws-ocp-student-env.template.yaml --parameters $(cat .ignore/params) --capabilities CAPABILITY_IAM
 
 delete:
 	aws cloudformation delete-stack --stack-name test
 
 .ONESHELL:
-test: lint submodules
-	cd .. && pwd && taskcat -c $(REPO_NAME)/ci/config.yml -n
+test: lint
+	cd .. && pwd && taskcat test run -i $(REPO_NAME)/ci/config.yml -n
 
 lint:
-	time taskcat -l -c ci/config.yml
+	time taskcat lint -i ci/config.yml
 
 public_repo:
 	taskcat -c $(REPO_NAME)/ci/config.yml -u
