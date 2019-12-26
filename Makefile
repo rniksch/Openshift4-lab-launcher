@@ -18,10 +18,10 @@ delete:
 
 .ONESHELL:
 test: lint
-	cd .. && pwd && taskcat test run -i $(REPO_NAME)/ci/config.yml -n
+	taskcat test run -n
 
 lint:
-	time taskcat lint -i ci/config.yml
+	time taskcat lint
 
 public_repo:
 	taskcat -c $(REPO_NAME)/ci/config.yml -u

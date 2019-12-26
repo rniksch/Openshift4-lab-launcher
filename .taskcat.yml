@@ -1,5 +1,5 @@
 project:
-  name: aws-ocp
+  name: CHANGE-ME   # This is overwritten in .taskcat_overrides.yml
   owner: quickstart-eng@amazon.com
   package_lambda: false
   regions:
@@ -13,9 +13,9 @@ tests:
 #      - us-west-2
   aws-ocp-4-2:
     parameters:
-      RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address
+      RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       StudentNum: "$[taskcat_random-numbers]"
-      ClusterName: trace3-test3               # This must be unique for each deployment
+      ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
       RhcosAmi: "ami-08e10b201e19fd5e7"
       IgnitionLocation: s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/ #Bucket/File of ignition files
       HostedZoneName: openshift.awsworkshop.io
