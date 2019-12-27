@@ -99,9 +99,34 @@ Resources:
               - Effect: Allow
                 Action:
                   - cloudformation:*
-                  - s3:*
+                  - s3:GetObject
                   - ec2:*
                   - cloud9:*
+                  - elasticloadbalancing:*
+                  - route53:GetHostedZone
+                  - route53:CreateHostedZone
+                  - route53:DeleteHostedZone
+                  - route53:ListQueryLoggingConfigs
+                  - route53:GetChange
+                  - route53:ChangeTagsForResource
+                  - route53:ChangeResourceRecordSets
+                  - route53:ListResourceRecordSets
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:PassRole
+                  - iam:CreateInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile 
+                  - iam:DeleteInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - lambda:CreateFunction
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:DeleteFunction
+                  - lambda:InvokeFunction
                 Resource: "*"
 Outputs:
   DeleteBucketContentsRoleArn:

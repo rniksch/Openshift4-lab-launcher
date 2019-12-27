@@ -112,6 +112,12 @@ Parameters:
   ServiceTargetGroupArn:
     Description: ARN for the service load balancer target group.
     Type: String
+  WebTargetGroupArn:
+    Description: ARN for the Web load balancer target group.
+    Type: String
+  WebSSLTargetGroupArn:
+    Description: ARN for the Web load balancer target group.
+    Type: String
   HostedZoneId:
     Description: The Route53 zone ID to register the etcd targets with, such as Z21IXYZABCZ2A4.
     Type: String
@@ -208,6 +214,22 @@ Resources:
     Properties:
       ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
       TargetArn: !Ref ServiceTargetGroupArn
+      TargetIp: !GetAtt Instance.PrivateIp
+
+  RegisterWebTarget:
+    Condition: DoRegistration
+    Type: Custom::NLBRegister
+    Properties:
+      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+      TargetArn: !Ref WebTargetGroupArn
+      TargetIp: !GetAtt Instance.PrivateIp
+  
+  RegisterWebSSLTarget:
+    Condition: DoRegistration
+    Type: Custom::NLBRegister
+    Properties:
+      ServiceToken: !Ref RegisterNlbIpTargetsLambdaArn
+      TargetArn: !Ref WebSSLTargetGroupArn
       TargetIp: !GetAtt Instance.PrivateIp
 
   Etcd0Record:
