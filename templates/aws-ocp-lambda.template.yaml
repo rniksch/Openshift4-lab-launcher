@@ -1,128 +1,98 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploys Lambda functions required for the AWS EKS Quick Start (qs-1p7nknoh4)
+Description: Deploys Lambda functions required for the AWS OpenShift labs
 Parameters:
+  LambdaZipsBucketName:
+    Description: Bucket Name where the lambda zip files should be placed
+    Type: String
+  CopyZipsRoleArn:
+    Description: CloudFormation CopyZips Exception Arn
+    Type: String
   ExecuteCFRoleArn:
     Description: CloudFormation Execution Arn
     Type: String
-    
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: 'Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).'
+    Default: aws-quickstart
+    Description: 'S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).'
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/.]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), dots(.) and forward slash (/).
+    Default: aws-ocp/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), dots(.) and
+      forward slash (/).
+    Type: String
 Resources:
-  DeployCFFunction:
+  CopyZipsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Copies objects from a source S3 bucket to a destination
+      Handler: index.handler
+      Runtime: python3.7
+      Role: !Ref CopyZipsRoleArn
+      Timeout: 900
+      Code:
+        ZipFile: |
+          import cfnresponse
+          import logging
+          import boto3
+          logger = logging.getLogger(__name__)
+          def copy_objects(source_bucket, dest_bucket, prefix, objects):
+              s3 = boto3.client('s3')
+              for o in objects:
+                  key = prefix + o
+                  copy_source = {'Bucket': source_bucket, 'Key': key}
+                  logging.info(f'copy_source: {copy_source}\ndest_bucket: {dest_bucket}\nkey: {key}')
+                  s3.copy_object(CopySource=copy_source, Bucket=dest_bucket, Key=key)
+          def delete_objects(bucket, prefix, objects):
+              s3 = boto3.client('s3')
+              objects = {'Objects': [{'Key': prefix + o} for o in objects]}
+              s3.delete_objects(Bucket=bucket, Delete=objects)
+          def handler(event, context):
+              logger.debug(event)
+              status = cfnresponse.SUCCESS
+              try:
+                  if event['RequestType'] == 'Delete':
+                      delete_objects(event['ResourceProperties']['DestBucket'], event['ResourceProperties']['Prefix'],
+                                     event['ResourceProperties']['Objects'])
+                  else:
+                      copy_objects(event['ResourceProperties']['SourceBucket'], event['ResourceProperties']['DestBucket'],
+                                   event['ResourceProperties']['Prefix'], event['ResourceProperties']['Objects'])
+              except Exception:
+                  logging.error('Unhandled exception', exc_info=True)
+                  status = cfnresponse.FAILED
+              finally:
+                  cfnresponse.send(event, context, status, {}, None)
+  CopyZips:
+    Type: Custom::CopyZips
+    Properties:
+      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+      DestBucket: !Ref LambdaZipsBucketName
+      SourceBucket: !Ref 'QSS3BucketName'
+      Prefix: !Ref 'QSS3KeyPrefix'
+      Objects:
+      - functions/packages/DeployCF/lambda.zip
+  DeployCFLambda:
+    DependsOn: CopyZips
     Type: AWS::Lambda::Function
     Properties:
       Description: Deploys CloudFormation Stacks 
-      Handler: index.handler
+      Handler: lambda_function.handler
+      MemorySize: 128
       Runtime: python3.7
       Role: !Ref ExecuteCFRoleArn
       Timeout: 900
       Code:
-        ZipFile: |
-        import cfnresponse
-        import logging
-        import boto3
-        logger = logging.getLogger(__name__)
-
-        def stack_exists(cf_client, stack_name):
-            stack_status_codes = ['CREATE_COMPLETE',
-                                  'UPDATE_COMPLETE',
-                                  'UPDATE_ROLLBACK_COMPLETE',
-                                  'ROLLBACK_COMPLETE']
-            for s in stacks_by_status(cf_client, stack_status_codes):
-                if s.get('StackName', '') == stack_name:
-                    return s
-            return None
-        def stacks_by_status(cf_client, status_include_filter):
-            """
-            ``status_include_filter`` should be a list ...
-            """
-            pages = cf_client.get_paginator('list_stacks').paginate(
-                StackStatusFilter=status_include_filter)
-            for page in pages:
-                for s in page.get('StackSummaries', []):
-                    yield s
-        def parse_properties(properties):
-            cf_params = {'Capabilities': ['CAPABILITY_IAM',
-                                'CAPABILITY_AUTO_EXPAND',
-                                'CAPABILITY_NAMED_IAM']
-            }
-            cf_params["Parameters"] = []
-            for key, value in properties.items():
-                if key == "StackName":
-                    cf_params["StackName"] = value
-                elif key == "TemplateURL":
-                    cf_params["TemplateURL"] = value
-                elif key == "NumStacks":
-                    cf_params["NumStacks"] = value
-                elif key == "KeyToUpdate":
-                    cf_params["KeyToUpdate"] = value
-                else:
-                    temp = {'ParameterKey': key, 'ParameterValue': value}
-                    print(temp)
-                    cf_params["Parameters"].append(temp)
-            return cf_params
-
-        def loop_child_stacks(cf_client, cf_params, action):
-            waiter_array = []
-            numStacks = 1
-            found = False
-            counter = 0
-            if "KeyToUpdate" in cf_params:
-                print("in key to Update")
-                for param in cf_params["Parameters"]:
-                    print(param)
-                    if param["ParameterKey"] == cf_params["KeyToUpdate"]:
-                        found = True
-                        break
-                    counter += 1
-                del cf_params["KeyToUpdate"]  
-            if "NumStacks" in cf_params:    
-                numStacks = cf_params["NumStacks"]
-                del cf_params["NumStacks"]
-            for x in range(numStacks):
-                if found:
-                    cf_params["Parameters"][counter]["ParameterValue"] = str(x)
-                original_name = cf_params["StackName"]
-                cf_params["StackName"] = "{}-{}".format(cf_params["StackName"],x)
-                stack = stack_exists(cf_client=cf_client, stack_name=cf_params["StackName"])
-                if action == "create" and stack == None:
-                    stack_result = cf_client.create_stack(**cf_params)
-                    waiter_array.append(cf_params["StackName"])
-                  
-                elif action == "delete" and stack:
-                    print("found and deleting stack")
-                    stack_result = cf_client.delete_stack(StackName=cf_params["StackName"])
-                    waiter_array.append(cf_params["StackName"])
-
-                cf_params["StackName"] = original_name
-            if action == "create":
-                waiter = cf_client.get_waiter('stack_create_complete')
-            elif action == "delete":
-                waiter = cf_client.get_waiter('stack_delete_complete')
-            wait_to_complete(waiter,waiter_array)
-                
-        def wait_to_complete(waiter, waiter_array):
-            while( len(waiter_array) > 0):
-                cur_waiter = waiter_array.pop()
-                print('...waiting for stack to be ready...')
-                waiter.wait(StackName=cur_waiter)
-                stack = stack_exists(cf_client=cf_client, stack_name=cur_waiter)
-
-        def handler(event,context):
-            logger.debug(event)
-            status = cfnresponse.SUCCESS
-            try:
-                cf_client = boto3.client('cloudformation')
-                cf_params = parse_properties(event['ResourceProperties'])
-                if event['RequestType'] == 'Delete':
-                    logger.info(event)
-                    loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="delete")
-                    print("Completed")
-                elif event['RequestType'] == 'Update':
-                    print("Only currently supported for adding entries")
-                else:
-                    loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="create")
-                    print("Completed")
-            except Exception:
-                logging.error('Unhandled exception', exc_info=True)
-                status = cfnresponse.FAILED
-            finally:
-                cfnresponse.send(event, context, status, {}, None)
+        S3Bucket: !Ref LambdaZipsBucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/DeployCF/lambda.zip'
+          
+Outputs:
+  DeployCFLambdaArn:
+    Value: !GetAtt DeployCFLambda.Arn

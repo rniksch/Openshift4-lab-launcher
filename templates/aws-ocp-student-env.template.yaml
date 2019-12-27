@@ -171,8 +171,8 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-network.template.yaml'
       Parameters:
-        ClusterName: !Ref ClusterName
-        InfrastructureName: !Ref ClusterName
+        ClusterName: !Sub ${ClusterName}-student${StudentNum}
+        InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
         VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
         SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
         HostedZoneName: !Ref HostedZoneName
@@ -194,16 +194,18 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
       Parameters:
-        InstanceName: bootstrap
-        InfrastructureName: !Ref ClusterName
+        InstanceName: !Sub ${ClusterName}-student${StudentNum}-bootstrap
+        InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
         InstanceType: "i3.large"
         SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
         RhcosAmi: !Ref RhcosAmi
-        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}bootstrap.ign
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}${ClusterName}-student${StudentNum}/bootstrap.ign
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
         ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
         ServiceTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ApiTargetGroupArn'
+        WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
+        WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
         HostedZoneName: !Sub ${ClusterName}.${HostedZoneName}
         HostedZoneId: !GetAtt 'NetworkStack.Outputs.HostedZoneId'
         ControlPlane: "no"
@@ -214,27 +216,30 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
       Parameters:
-        InstanceName: AIO
-        InfrastructureName: !Ref ClusterName
+        InstanceName: !Sub ${ClusterName}-student${StudentNum}-AIO
+        InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
         InstanceType: "m4.xlarge"
         RhcosAmi: !Ref RhcosAmi
-        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}master.ign
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}${ClusterName}-student${StudentNum}/master.ign
         SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
         ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
         ServiceTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ApiTargetGroupArn'
-        HostedZoneName: !Sub ${ClusterName}.${HostedZoneName}
+        WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
+        WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
+        HostedZoneName: !Sub ${ClusterName}-student${StudentNum}.${HostedZoneName}
         HostedZoneId: !GetAtt 'NetworkStack.Outputs.HostedZoneId'
         ControlPlane: "yes"
 
   Cloud9Instance:
+    DependsOn: ControlPlaneStack
     Type: AWS::Cloud9::EnvironmentEC2
     Properties: 
       AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
       Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
       InstanceType: !Ref Cloud9InstanceType
-      Name: !Sub '${MasterStack}-${StudentNum}'
+      Name: !Sub 'student${StudentNum}'
       #OwnerArn: String
       #Repositories: 
       #  - Repository
