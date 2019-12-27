@@ -8,6 +8,9 @@ project:
 tests:
   aws-ignition-file-lambda:
     parameters:
+      LambdaZipsBucketName: "$[taskcat_autobucket]"
+      QSS3BucketName: "$[taskcat_autobucket]"
+      QSS3KeyPrefix: "aws-ocp/"
     template: templates/aws-ocp-generate-ignition-files-lambda.yaml
     regions:
       - us-west-1
