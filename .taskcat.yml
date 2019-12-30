@@ -1,19 +1,17 @@
 project:
-  name: CHANGE-ME   # This is overwritten in .taskcat_overrides.yml
+  name: &project_name trace3-jacob-test   # This is overwritten in .taskcat_overrides.yml
   owner: quickstart-eng@amazon.com
   package_lambda: true
   regions:
-    - us-west-2
+    - us-east-1
 
 tests:
   aws-ignition-file-lambda:
     parameters:
+      ProjectName: *project_name
       LambdaZipsBucketName: "$[taskcat_autobucket]"
-      QSS3BucketName: "$[taskcat_autobucket]"
       QSS3KeyPrefix: "aws-ocp/"
     template: templates/aws-ocp-generate-ignition-files-lambda.yaml
-    regions:
-      - us-west-1
 #  aws-ocp-master:
 #    parameter_input: aws-ocp-master.json
 #    template_file: aws-ocp-master.template.yaml

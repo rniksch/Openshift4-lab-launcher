@@ -1,18 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deploys Lambda to generate ignition files for OCP lab
 Parameters:
+  ProjectName:
+    Description: Project name
+    Type: String
   LambdaZipsBucketName:
     Description: Bucket Name where the lambda zip files should be placed
-    Type: String
-  QSS3BucketName:
-    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: 'Quick Start bucket name can include numbers, lowercase
-      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
-      (-).'
-    Default: aws-quickstart
-    Description: 'S3 bucket name for the Quick Start assets. This string can include
-      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
-      or end with a hyphen (-).'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/.]*$
@@ -24,6 +17,18 @@ Parameters:
       forward slash (/).
     Type: String
 Resources:
+  GenerateIgnitionFilesLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
   GenerateIgnitionFilesLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -31,12 +36,8 @@ Resources:
       Handler: lambda_function.handler
       MemorySize: 512
       Runtime: python3.7
-      Role: !Ref ExecuteCFRoleArn
       Timeout: 900
+      Role: !GetAtt GenerateIgnitionFilesLambdaRole.Arn
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/GenerateIgnitionFiles/lambda.zip'
-          
-Outputs:
-  DeployCFLambdaArn:
-    Value: !GetAtt GenerateIgnitionFilesLambda.Arn
+        S3Key: !Sub '${LambdaZipsBucketName}/${ProjectName}/functions/packages/GenerateIgnitionFiles/lambda.zip'
