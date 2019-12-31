@@ -6,17 +6,27 @@ project:
     - us-east-1
 
 tests:
-  aws-ignition-file-lambda:
+#  aws-ignition-file-lambda:
+#    parameters:
+#      ProjectName: *project_name
+#      LambdaZipsBucketName: "$[taskcat_autobucket]"
+#      QSS3KeyPrefix: "aws-ocp/"
+#    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
+  aws-ocp-master:
     parameters:
-      ProjectName: *project_name
-      LambdaZipsBucketName: "$[taskcat_autobucket]"
+      RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+      StudentNum: "$[taskcat_random-numbers]"
+      ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
+      RhcosAmi: "ami-08e10b201e19fd5e7"
+      IgnitionLocation: s3://ignition-bucket/ #Bucket/File of ignition files
+      PullSecret: 
+      SSHKey: 
+      HostedZoneName: openshift.awsworkshop.io
+      QSS3BucketName: "$[taskcat_autobucket]"
       QSS3KeyPrefix: "aws-ocp/"
-    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
-#  aws-ocp-master:
-#    parameter_input: aws-ocp-master.json
-#    template_file: aws-ocp-master.template.yaml
-#    regions:
-#      - us-west-2
+    template: templates/aws-ocp-master.template.yaml
+    regions:
+      - us-west-2
 # aws-ocp-4-2:
 #   parameters:
 #     RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address
