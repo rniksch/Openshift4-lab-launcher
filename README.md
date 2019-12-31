@@ -41,7 +41,7 @@ In order to test from taskcat you need an override file in your home .aws direct
         }
     ]
 
-Please also verify the `ci/config.yml` is updated with the region you wish to deploy to. The rest of the parameters should be answered in the `ci/<test>.json` : `aws-ocp-3-11.json`
+Please also verify the [.taskcat.yml](.taskcat.yml) is updated with the region you wish to deploy to. The rest of the parameters should be answered in the `.taskcat_overrides.yml` and not committed to code.
 
 NOTE: We have seen issues running taskcat under the following conditions, please verify:
     * Your Environment variables for AWS are what you want as they override your `~/.aws/credentials` and `~/.aws/config`
