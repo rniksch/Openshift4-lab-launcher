@@ -1,7 +1,7 @@
 import subprocess
 import logging
 import json
-import yaml
+from ruamel import yaml
 import urllib.request
 import urllib.error
 import os
@@ -9,6 +9,7 @@ import tarfile
 import boto3
 import hashlib
 import sys
+import cfnresponse
 log = logging.getLogger(__name__)
 
 def install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path):
@@ -85,7 +86,7 @@ def generate_ignition_files(openshift_install_binary, download_path, student_clu
     if not os.path.exists(assets_directory):
         os.mkdir(assets_directory)
     log.info("Generating install-config file for {}...".format(student_cluster_name))
-    openshift_install_config = yaml.load(open(install_config_file, 'r'), Loader=yaml.FullLoader)
+    openshift_install_config = yaml.safe_load(open(install_config_file, 'r'))
     openshift_install_config['metadata']['name'] = student_cluster_name
     openshift_install_config['sshKey'] = ssh_key
     openshift_install_config['pullSecret'] = pull_secret
@@ -97,7 +98,7 @@ def generate_ignition_files(openshift_install_binary, download_path, student_clu
     run_process(cmd)
     log.info("Tweak manifests for {}...".format(student_cluster_name))
     cluster_scheduler_manifest = os.path.join(assets_directory, 'manifests', 'cluster-scheduler-02-config.yml')
-    manifest = yaml.load(open(cluster_scheduler_manifest), Loader=yaml.FullLoader)
+    manifest = yaml.safe_load(open(cluster_scheduler_manifest))
     manifest['spec']['mastersSchedulable'] = False
     yaml.dump(manifest, open(cluster_scheduler_manifest, 'w'))
     log.info("Generate ignition files for {}...".format(student_cluster_name))
@@ -112,20 +113,21 @@ def run_process(cmd):
         log.info(proc.stdout)
         log.info(proc.stderr)
     except subprocess.CalledProcessError as e:
+        print("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
         log.error(e.cmd)
         log.error(e.stderr)
         log.error(e.stdout)
-        sys.exit(1)
+        raise
     except OSError as e:
+        print("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
         log.error("OSError: {}".format(e.errno))
         log.error(e.strerror)
         log.error(e.filename)
-        sys.exit(1)
+        raise 
 
 def upload_to_s3(download_path, student_cluster_name, s3_bucket):
     client = boto3.client('s3')
     folder = download_path + student_cluster_name
-    response = client.list_buckets()
     log.info("Uploading {} to s3 bucket {}...".format(folder, s3_bucket))
     for subdir, dirs, files in os.walk(folder):
         for file in files:
@@ -138,26 +140,49 @@ def upload_to_s3(download_path, student_cluster_name, s3_bucket):
             except:
                 client.upload_file(local_path, s3_bucket, s3_path)
 
-def lambda_handler(event, context):
-    s3_bucket = event['S3_BUCKET']
-    pull_secret = event.get('PULL_SECRET', os.getenv('PULL_SECRET'))
-    ssh_key = event.get('SSH_KEY', os.environ.get('SSH_KEY'))
-    deployment_name = event['DEPLOYMENT_NAME']
-    student_amount = event['STUDENT_AMOUNT']
-    openshift_client_mirror_url = event['OPENSHIFT_MIRROR_URL']
-    openshift_version = event['OPENSHIFT_VERSION']
-    openshift_install_binary = event['OPENSHIFT_INSTALL_BINARY']
-    file_extension = '.tar.gz'
-    if sys.platform == 'darwin':
-        openshift_install_os = '-mac-'
-    else:
-        openshift_install_os = '-linux-'
-    openshift_install_package = openshift_install_binary + openshift_install_os + openshift_version + file_extension
-    download_path = '/tmp/'
+def delete_contents_s3(s3_bucket):
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(s3_bucket)
+    bucket.objects.all().delete()
 
-    log.info("Deployment name: " + event['DEPLOYMENT_NAME'])
-    install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path)
-    for i in range(student_amount):
-        student_cluster_name = deployment_name + '-' + 'student-' + str(i)
-        generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret)
-        upload_to_s3(download_path, student_cluster_name, s3_bucket)
+def handler(event, context):
+    status = cfnresponse.SUCCESS
+    try:
+        cf_client = boto3.client('cloudformation')
+        if event['RequestType'] == 'Delete':
+            print("Delete request found, initiating..")
+            delete_contents_s3(s3_bucket=event['ResourceProperties']['S3_BUCKET'])
+        elif event['RequestType'] == 'Update':
+            print("Update sent, however, this is unsupported at this time.")
+            pass
+        else:
+            print("Delete and Update not detected, proceeding with Create")
+            s3_bucket = event['ResourceProperties']['S3_BUCKET']
+            pull_secret = event['ResourceProperties'].get('PULL_SECRET', os.getenv('PULL_SECRET'))
+            ssh_key = event['ResourceProperties'].get('SSHKey', os.environ.get('SSH_KEY'))
+            cluster_name = event['ResourceProperties']['ClusterName']
+            number_of_students = int(event['ResourceProperties']['NumStudents'])
+            openshift_client_base_mirror_url = event['ResourceProperties']['OPENSHIFT_MIRROR_URL']
+            openshift_version = event['ResourceProperties']['OPENSHIFT_VERSION']
+            openshift_install_binary = event['ResourceProperties']['OPENSHIFT_INSTALL_BINARY']
+            file_extension = '.tar.gz'
+            if sys.platform == 'darwin':
+                openshift_install_os = '-mac-'
+            else:
+                openshift_install_os = '-linux-'
+            openshift_install_package = openshift_install_binary + openshift_install_os + openshift_version + file_extension
+            openshift_client_mirror_url = openshift_client_base_mirror_url + openshift_version + "/"
+            download_path = '/tmp/'
+
+            log.info("Cluster name: " + event['ResourceProperties']['ClusterName'])
+            install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path)
+            for i in range(number_of_students):
+                student_cluster_name = cluster_name + '-' + 'student' + str(i)
+                generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret)
+                upload_to_s3(download_path, student_cluster_name, s3_bucket)
+        print("Complete")
+    except Exception:
+        logging.error('Unhandled exception', exc_info=True)
+        status = cfnresponse.FAILED
+    finally:
+        cfnresponse.send(event, context, status, {}, None)

@@ -65,9 +65,9 @@ Resources:
         Value: !Join ["-", [!Ref InfrastructureName, "int"]]
       - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
         Value: "owned"
-      VPCs:
-      - VPCId: !Ref VpcId
-        VPCRegion: !Ref "AWS::Region"
+      #VPCs: # Attempt to make this public.. So a single Lambda could attempt to hit each environment.
+      #- VPCId: !Ref VpcId
+      #  VPCRegion: !Ref "AWS::Region"
   AIOElb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:

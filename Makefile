@@ -4,6 +4,7 @@ VENV_NAME?=venv
 VENV_ACTIVATE=. $(VENV_NAME)/bin/activate
 PYTHON=${VENV_NAME}/bin/python3
 PYTHON3 := $(shell python3 -V 2>&1)
+FUNCTIONS=GenerateIgnitionFiles DeployCF
 
 submodules:
 	git submodule init
@@ -21,7 +22,7 @@ delete:
 	aws cloudformation delete-stack --stack-name test
 
 .ONESHELL:
-test: lint
+test: lint create_zips
 	taskcat test run -n
 
 lint:
@@ -31,6 +32,17 @@ public_repo:
 	taskcat -c $(REPO_NAME)/ci/config.yml -u
 	#https://taskcat-tag-quickstart-jfrog-artifactory-c2fa9d34.s3-us-west-2.amazonaws.com/quickstart-jfrog-artifactory/templates/jfrog-artifactory-ec2-master.template
 	#curl https://taskcat-tag-quickstart-jfrog-artifactory-7008506c.s3-us-west-2.amazonaws.com/quickstart-jfrog-artifactory/templates/jfrog-artifactory-ec2-master.template
+
+create_zips:
+	for folder in `ls functions/source/` ; do \
+		if [ ! -d functions/packages/$$folder ]; then \
+			mkdir functions/packages/$$folder ; \
+		fi ;\
+		cd functions/source/$$folder && \
+		ls && \
+		zip -r ../../packages/$$folder/lambda.zip * && \
+		cd ../../../ ; \
+	done
 
 verify:
 ifdef PYTHON3

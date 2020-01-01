@@ -4,6 +4,9 @@ Parameters:
   LambdaZipsBucketName:
     Description: Bucket Name where the lambda zip files should be placed
     Type: String
+  IgnitionBucketName:
+    Description: Bucket Name where the IgnitionCondfig files should be placed
+    Type: String
   QSS3BucketName:
     Description: 'S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -31,6 +34,28 @@ Parameters:
 Conditions:
     CreateDeleteBucketContentsRole: !Equals [!Ref 'DeleteLambdaZipsBucketContents', "True"]
 Resources:
+  GenerateIgnitionConfigRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ModifyIgnitionContent
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:*
+                Resource:
+                  - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
+                  - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
   DeleteBucketContentsRole:
     Condition: CreateDeleteBucketContentsRole
     Type: AWS::IAM::Role
@@ -131,6 +156,8 @@ Resources:
 Outputs:
   DeleteBucketContentsRoleArn:
     Value: !If [ CreateDeleteBucketContentsRole, !GetAtt DeleteBucketContentsRole.Arn, "" ]
+  GenerateIgnitionConfigRoleArn:
+    Value: !GetAtt GenerateIgnitionConfigRole.Arn
   CopyZipsRoleArn:
     Value: !GetAtt CopyZipsRole.Arn
   ExecuteCFRoleArn:

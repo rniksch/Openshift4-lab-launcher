@@ -10,6 +10,9 @@ Parameters:
   ExecuteCFRoleArn:
     Description: CloudFormation Execution Arn
     Type: String
+  GenerateIgnitionConfigRoleArn:
+    Description: OpenShift installer Executor (GenerateIngitionConfigs) Arn
+    Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: 'Quick Start bucket name can include numbers, lowercase
@@ -79,6 +82,20 @@ Resources:
       Prefix: !Ref 'QSS3KeyPrefix'
       Objects:
       - functions/packages/DeployCF/lambda.zip
+      - functions/packages/GenerateIgnitionFiles/lambda.zip
+  DeployIgnitionLambda:
+    DependsOn: CopyZips
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Generates Ignition Files
+      Handler: lambda_function.handler
+      MemorySize: 512
+      Runtime: python3.7
+      Role: !Ref GenerateIgnitionConfigRoleArn
+      Timeout: 900
+      Code:
+        S3Bucket: !Ref LambdaZipsBucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/GenerateIgnitionFiles/lambda.zip'
   DeployCFLambda:
     DependsOn: CopyZips
     Type: AWS::Lambda::Function
@@ -94,5 +111,7 @@ Resources:
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/DeployCF/lambda.zip'
           
 Outputs:
+  DeployIgnitionLambdaArn:
+    Value: !GetAtt DeployIgnitionLambda.Arn
   DeployCFLambdaArn:
     Value: !GetAtt DeployCFLambda.Arn

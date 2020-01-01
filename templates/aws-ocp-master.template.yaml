@@ -20,6 +20,8 @@ Metadata:
           - ClusterName
           - HostedZoneName
           - NumStudents
+          - PullSecret
+          - SSHKey
           - RhcosAmi
           - IgnitionLocation
       - Label:
@@ -31,6 +33,7 @@ Metadata:
           default: AWS Quick Start Configuration
         Parameters:
           - LambdaZipsBucketName
+          - IgnitionBucketName
           - StudentTemplate
           - QSS3BucketName
           - QSS3KeyPrefix
@@ -51,6 +54,10 @@ Metadata:
         default: Hosted DNS zone name
       NumStudents:
         default: Number of students
+      PullSecret:
+        default: OCP Pull Secret
+      SSHKey:
+        default: Public ssh Key
       RhcosAmi:
         default: "Red Hat Enterprise Linux CoreOS AMI ID"
       IgnitionLocation:
@@ -61,6 +68,8 @@ Metadata:
         default: Cloud9 instance type
       LambdaZipsBucketName:
         default: Lambda zips bucket name
+      IgnitionBucketName:
+        default: Ignition source bucket name
       StudentTemplate:
         default: Student CloudFormation template name
       QSS3BucketName:
@@ -99,21 +108,29 @@ Parameters:
     Default: "4.2"
     Type: String
   ClusterName:
-      Description: A short, representative cluster name to use for host names and other identifying names. This
-        will be combined with the studentNumber to create the full cluster name
-      AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
-      ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
-      MaxLength: 27
-      MinLength: 1
-      Type: String
+    Description: A short, representative cluster name to use for host names and other identifying names. This
+      will be combined with the studentNumber to create the full cluster name
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    MaxLength: 12
+    MinLength: 1
+    Type: String
   HostedZoneName:
-      Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
-      Default: "example.com"
-      Type: String
+    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+    Default: "example.com"
+    Type: String
   NumStudents:
     Description: The number of student environments to provision for the lab.
     Default: 1
     Type: Number
+  PullSecret:
+    Description: The Secret used to pull the OpenShift containers from the secure registry.
+    Default: ""
+    Type: String
+  SSHKey:
+    Description: The public key to be added to the CoreOS boxes for ssh access.
+    Default: ""
+    Type: String
   RhcosAmi:
     Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
@@ -134,6 +151,10 @@ Parameters:
     Type: String
   LambdaZipsBucketName:
     Description: '[OPTIONAL] The name of the S3 bucket where the Lambda zip files should be placed. If you leave this parameter blank, an S3 bucket will be created.'
+    Default: ''
+    Type: String
+  IgnitionBucketName:
+    Description: '[OPTIONAL] The name of the S3 bucket where the ignition script files should be placed. If you leave this parameter blank, an S3 bucket will be created.'
     Default: ''
     Type: String
   StudentTemplate:
@@ -165,8 +186,16 @@ Parameters:
       uppercase letters, hyphens (-), and forward slash (/).
     Default: aws-ocp/
     Type: String
+# Mappings
+#   OpenShiftVersion:
+#     4.2:
+#       OPENSHIFT_MIRROR_URL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+#       OPENSHIFT_VERSION: "4.2.12"
+#       OPENSHIFT_INSTALL_BINARY: "openshift-install"
 Conditions:
-      CreateLambdaZipsBucket: !Equals [!Ref 'LambdaZipsBucketName', '']
+    CreateLambdaZipsBucket: !Equals [!Ref 'LambdaZipsBucketName', '']
+    CreateIgnitionBucket: !Equals [!Ref 'IgnitionBucketName', '']
+#   OCP4: !Equals [!Ref OpenShiftVersion, '4.2']
 Resources:
   IamStack:
     Type: AWS::CloudFormation::Stack
@@ -174,9 +203,15 @@ Resources:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-iam.template.yaml'
       Parameters:
         LambdaZipsBucketName: !If [ CreateLambdaZipsBucket, !Ref LambdaZipsBucket, !Ref LambdaZipsBucketName ]
+        IgnitionBucketName: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
         DeleteLambdaZipsBucketContents: !If [ CreateLambdaZipsBucket, "True", "False" ]
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
+
+  IgnitionBucket:
+    #Condition: OCP4
+    Type: AWS::S3::Bucket
+    Condition: CreateIgnitionBucket
 
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
@@ -190,16 +225,32 @@ Resources:
         LambdaZipsBucketName: !If [ CreateLambdaZipsBucket, !Ref LambdaZipsBucket, !Ref LambdaZipsBucketName ]
         CopyZipsRoleArn: !GetAtt IamStack.Outputs.CopyZipsRoleArn
         ExecuteCFRoleArn: !GetAtt IamStack.Outputs.ExecuteCFRoleArn
+        GenerateIgnitionConfigRoleArn: !GetAtt IamStack.Outputs.GenerateIgnitionConfigRoleArn
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
 
+  IgnitionExecute:
+    #Condition: OCP4
+    Type: Custom::LambdaDeployIgnition
+    Properties:
+      ServiceToken: !GetAtt LambdaStack.Outputs.DeployIgnitionLambdaArn
+      S3_BUCKET: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+      PULL_SECRET: !Ref PullSecret
+      SSHKey: !Ref SSHKey
+      ClusterName: !Ref ClusterName
+      NumStudents: !Ref NumStudents
+      OPENSHIFT_MIRROR_URL: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+      OPENSHIFT_VERSION : "4.2.12"
+      OPENSHIFT_INSTALL_BINARY: "openshift-install"
+  
   StudentStacks:
+    DependsOn: IgnitionExecute
     Type: Custom::LambdaDeployCF
     Properties:
       ServiceToken: !GetAtt LambdaStack.Outputs.DeployCFLambdaArn
-      StackName: "LabSt"
+      StackName: !Ref ClusterName
       KeyToUpdate: "StudentNum"
-      StudentNum: 0
+      StudentNum: !Ref NumStudents
       TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${StudentTemplate}"
       VPCCIDR: !Ref VPCCIDR
       AvailabilityZone: !Ref AvailabilityZone
@@ -211,11 +262,12 @@ Resources:
       ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
       RhcosAmi: !Ref RhcosAmi
-      IgnitionLocation: !Ref IgnitionLocation
+      IgnitionLocation: !If [CreateIgnitionBucket, !Sub "s3://${IgnitionBucket}", !Sub "s3://${IgnitionBucketName}" ]
       Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
       Cloud9InstanceType: !Ref Cloud9InstanceType
       QSS3BucketName: !Ref QSS3BucketName
       QSS3KeyPrefix: !Ref QSS3KeyPrefix
+      
 #  DeleteBucketContents:
 #    Condition: CreateLambdaZipsBucket
 #    Type: Custom::DeleteBucketContents
