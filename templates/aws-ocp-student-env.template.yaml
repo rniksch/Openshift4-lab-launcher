@@ -116,7 +116,7 @@ Parameters:
       Type: AWS::EC2::Image::Id
   IgnitionLocation:
     Default: s3://my-s3-bucket/myfolder
-    Description: Ignition S3 bucket and or folder location in which bootstrap.ign will be added to.
+    Description: Ignition S3 bucket and or folder location in which bootstrap.ign will be added to. Do not add a trailing /
     Type: String
   HostedZoneName:
       Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
@@ -194,12 +194,12 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
       Parameters:
-        InstanceName: !Sub ${ClusterName}-student${StudentNum}-bootstrap
+        InstanceName: !Sub ${ClusterName}-student${StudentNum}-BOOT
         InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
         InstanceType: "i3.large"
         SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
         RhcosAmi: !Ref RhcosAmi
-        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}${ClusterName}-student${StudentNum}/bootstrap.ign
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${ClusterName}-student${StudentNum}/bootstrap.ign
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
         ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
@@ -220,7 +220,7 @@ Resources:
         InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
         InstanceType: "m4.xlarge"
         RhcosAmi: !Ref RhcosAmi
-        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}${ClusterName}-student${StudentNum}/master.ign
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${ClusterName}-student${StudentNum}/master.ign
         SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'

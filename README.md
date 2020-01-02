@@ -55,6 +55,16 @@ Then you need to be above the repository directory and execute, with make: `make
 When running a lot of tests, the S3 buckets can begin to add up. To clean up all Taskcat buckets you can run the following:
 `aws s3 ls | grep taskcat | cut -d ' ' -f 3 | xargs -I {} aws s3 rb s3://{} --force`
 
+## Debugging Ignition Lambda
+
+To debug ignition lambda run
+
+```bash
+export PULL_SECRET=<YOUR PULL SECRET>
+export SSH_KEY=<YOUR PUBLIC SSH_KEY>
+make run_lambda
+```
+
 ## OCP 3.x
 
 ## OCP 4.x

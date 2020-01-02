@@ -1,29 +1,44 @@
 project:
-  name: CHANGE-ME   # This is overwritten in .taskcat_overrides.yml
+  name: aws-ocp  # This is overwritten in .taskcat_overrides.yml
   owner: quickstart-eng@amazon.com
-  package_lambda: false
   regions:
-    - us-west-2
+    - us-east-1
 
 tests:
-#  aws-ocp-master:
-#    parameter_input: aws-ocp-master.json
-#    template_file: aws-ocp-master.template.yaml
-#    regions:
-#      - us-west-2
-  aws-ocp-4-2:
+#  aws-ignition-file-lambda:
+#    parameters:
+#      ProjectName: *project_name
+#      LambdaZipsBucketName: "$[taskcat_autobucket]"
+#      QSS3KeyPrefix: "aws-ocp/"
+#    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
+  aws-ocp-master:
     parameters:
       RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
-      StudentNum: "$[taskcat_random-numbers]"
+      NumStudents: "$[taskcat_random-numbers]"
       ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
       RhcosAmi: "ami-08e10b201e19fd5e7"
-      IgnitionLocation: s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/ #Bucket/File of ignition files
+      IgnitionLocation: s3://ignition-bucket/ #Bucket/File of ignition files
+      PullSecret: CHANGE-ME
+      SSHKey: CHANGE-ME
       HostedZoneName: openshift.awsworkshop.io
       QSS3BucketName: "$[taskcat_autobucket]"
       QSS3KeyPrefix: "aws-ocp/"
-    template: templates/aws-ocp-student-env.template.yaml
+    template: templates/aws-ocp-master.template.yaml
     regions:
       - us-west-2
+# aws-ocp-4-2:
+#   parameters:
+#     RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address
+#     StudentNum: "$[taskcat_random-numbers]"
+#     ClusterName: trace3-test3               # This must be unique for each deployment
+#     RhcosAmi: "ami-08e10b201e19fd5e7"
+#     IgnitionLocation: s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/ #Bucket/File of ignition files
+#     HostedZoneName: openshift.awsworkshop.io
+#     QSS3BucketName: "$[taskcat_autobucket]"
+#     QSS3KeyPrefix: "aws-ocp/"
+#   template: templates/aws-ocp-student-env.template.yaml
+#   regions:
+#     - us-west-2
 #  aws-network:
 #    parameters:
 #      ClusterName: "trace3-test3"

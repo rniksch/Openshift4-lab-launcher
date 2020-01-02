@@ -1,0 +1,8 @@
+{
+  "S3_BUCKET": "ignition-bucket",
+  "STUDENT_AMOUNT": 2,
+  "DEPLOYMENT_NAME": "test",
+  "OPENSHIFT_MIRROR_URL": "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/",
+  "OPENSHIFT_VERSION": "4.2.12",
+  "OPENSHIFT_INSTALL_BINARY": "openshift-install"
+}
