@@ -96,11 +96,11 @@ def generate_ignition_files(openshift_install_binary, download_path, student_clu
     log.info("Generating manifests for {}...".format(student_cluster_name))
     cmd = download_path + openshift_install_binary + " create manifests --dir {}".format(assets_directory)
     run_process(cmd)
-    log.info("Tweak manifests for {}...".format(student_cluster_name))
-    cluster_scheduler_manifest = os.path.join(assets_directory, 'manifests', 'cluster-scheduler-02-config.yml')
-    manifest = yaml.safe_load(open(cluster_scheduler_manifest))
-    manifest['spec']['mastersSchedulable'] = False
-    yaml.dump(manifest, open(cluster_scheduler_manifest, 'w'))
+    #log.info("Tweak manifests for {}...".format(student_cluster_name))
+    #cluster_scheduler_manifest = os.path.join(assets_directory, 'manifests', 'cluster-scheduler-02-config.yml')
+    #manifest = yaml.safe_load(open(cluster_scheduler_manifest))
+    #manifest['spec']['mastersSchedulable'] = False
+    #yaml.dump(manifest, open(cluster_scheduler_manifest, 'w'))
     log.info("Generate ignition files for {}...".format(student_cluster_name))
     cmd = download_path + openshift_install_binary + " create ignition-configs --dir {}".format(assets_directory)
     run_process(cmd)
