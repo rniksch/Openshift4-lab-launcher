@@ -14,6 +14,7 @@ Metadata:
           - VPCCIDR
           - PublicSubnetCIDR
           - HostedZoneName
+          - HostedZoneId
       - Label:
           default: Lab information
         Parameters:
@@ -54,6 +55,8 @@ Metadata:
         default: "S3 base folder for Ignition Source"
       HostedZoneName:
         default: "Public Hosted Zone Name"
+      HostedZoneId:
+        default: "Public Hosted Zone ID"
       StudentNum:
         default: Student Number for Lab ID
       Cloud9AutoStopInMin:
@@ -122,6 +125,9 @@ Parameters:
       Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
       Default: "example.com"
       Type: String
+  HostedZoneId:
+    Description: The Route53 ZoneID to register targets with such as Z10388841I9PET6WI93F3
+    Type: String
   Cloud9AutoStopInMin:
     Description: The time the Cloud9 instance is automatically stopped after no use.
     Default: 30
@@ -176,6 +182,7 @@ Resources:
         VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
         SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
         HostedZoneName: !Ref HostedZoneName
+        HostedZoneId: !Ref HostedZoneId
 
   MasterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -207,7 +214,7 @@ Resources:
         WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
         WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
         HostedZoneName: !Sub ${ClusterName}.${HostedZoneName}
-        HostedZoneId: !GetAtt 'NetworkStack.Outputs.HostedZoneId'
+        HostedZoneId: !Ref HostedZoneId
         ControlPlane: "no"
 
   ControlPlaneStack:
@@ -229,7 +236,7 @@ Resources:
         WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
         WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
         HostedZoneName: !Sub ${ClusterName}-student${StudentNum}.${HostedZoneName}
-        HostedZoneId: !GetAtt 'NetworkStack.Outputs.HostedZoneId'
+        HostedZoneId: !Ref HostedZoneId
         ControlPlane: "yes"
 
   Cloud9Instance:
