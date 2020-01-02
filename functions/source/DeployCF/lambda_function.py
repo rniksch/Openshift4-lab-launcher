@@ -1,6 +1,7 @@
 import cfnresponse
 import logging
 import boto3
+import datetime
 logger = logging.getLogger(__name__)
 
 def stack_exists(cf_client, stack_name):
@@ -44,7 +45,7 @@ def parse_properties(properties):
             cf_params["Parameters"].append(temp)
     return cf_params
 
-def loop_child_stacks(cf_client, cf_params, action, **kwargs):
+def loop_child_stacks(cf_client, cf_params, action, now, end, **kwargs):
     waiter_array = []
     numStacks = 1
     current_numStacks = 0
@@ -102,31 +103,41 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
 
         cf_params["StackName"] = original_name
     waiter = cf_client.get_waiter(stack_state)
-    wait_to_complete(cf_client,waiter,waiter_array)
+    print(waiter.config)
+    waiter.config.max_attempts = 10
+    wait_to_complete(cf_client,waiter,waiter_array,now=now, end=end)
         
-def wait_to_complete(cf_client,waiter, waiter_array):
-    while( len(waiter_array) > 0):
+def wait_to_complete(cf_client,waiter, waiter_array, now, end):
+    while( len(waiter_array) > 0 ):
+        if now > end:
+            print("Time has ran out to wait, must exit")
+            break
         cur_waiter = waiter_array.pop()
         print('...waiting for stack to be ready...')
-        waiter.wait(StackName=cur_waiter)
+        try:
+            waiter.wait(StackName=cur_waiter)
+        except Exception:
+            print("Caught exception in Waiter..")
         stack = stack_exists(cf_client=cf_client, stack_name=cur_waiter)
 
 def handler(event,context):
     logger.debug(event)
     status = cfnresponse.SUCCESS
+    now = datetime.datetime.now()
+    end = datetime.datetime.now() + datetime.timedelta(minutes=14)
     try:
         cf_client = boto3.client('cloudformation')
         cf_params = parse_properties(event['ResourceProperties'])
         if event['RequestType'] == 'Delete':
             print("Inside delete")
             logger.info(event)
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="delete")
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="delete", now=now, end=end)
         elif event['RequestType'] == 'Update':
             old_params = parse_properties(event['OldResourceProperties'])
             print("Inside update and old_params is {}".format(old_params))
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="update", old_params=old_params)
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="update", now=now, end=end, old_params=old_params)
         else:
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="create")
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="create", now=now, end=end)
         print("Completed")
     except Exception:
         logging.error('Unhandled exception', exc_info=True)
