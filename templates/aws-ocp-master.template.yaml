@@ -19,6 +19,7 @@ Metadata:
           - OpenShiftVersion
           - ClusterName
           - HostedZoneName
+          - HostedZoneId
           - NumStudents
           - PullSecret
           - SSHKey
@@ -52,6 +53,8 @@ Metadata:
         default: Cluster Name prefix
       HostedZoneName:
         default: Hosted DNS zone name
+      HostedZoneId:
+        default: "Public Hosted Zone ID"
       NumStudents:
         default: Number of students
       PullSecret:
@@ -118,6 +121,9 @@ Parameters:
   HostedZoneName:
     Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
     Default: "example.com"
+    Type: String
+  HostedZoneId:
+    Description: The Route53 ZoneID to register targets with such as Z10388841I9PET6WI93F3
     Type: String
   NumStudents:
     Description: The number of student environments to provision for the lab.
@@ -261,6 +267,7 @@ Resources:
       NumStacks: !Ref NumStudents
       ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
+      HostedZoneId: !Ref HostedZoneId
       RhcosAmi: !Ref RhcosAmi
       IgnitionLocation: !If [CreateIgnitionBucket, !Sub "s3://${IgnitionBucket}", !Sub "s3://${IgnitionBucketName}" ]
       Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin

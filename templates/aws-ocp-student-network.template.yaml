@@ -17,6 +17,7 @@ Metadata:
         default: "DNS"
       Parameters:
       - HostedZoneName
+      - HostedZoneId
     ParameterLabels:
       ClusterName:
         default: "Cluster Name"
@@ -28,6 +29,8 @@ Metadata:
         default: "Private Subnets"
       HostedZoneName:
         default: "Public Hosted Zone Name"
+      HostedZoneId:
+        default: "Public Hosted Zone ID"
 Parameters:
   ClusterName:
     Description: A short, representative cluster name to use for host names and other identifying names.
@@ -47,6 +50,9 @@ Parameters:
     Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
     Default: "example.com"
     Type: String
+  HostedZoneId:
+    Description: The Route53 ZoneID to register targets with such as Z10388841I9PET6WI93F3
+    Type: String
   SubnetId:
     Description: The subnet.
     Type: AWS::EC2::Subnet::Id
@@ -54,20 +60,20 @@ Parameters:
     Description: The VPC-scoped resources will belong to this VPC.
     Type: AWS::EC2::VPC::Id
 Resources:
-  Dns:
-    Type: "AWS::Route53::HostedZone"
-    Properties:
-      HostedZoneConfig:
-        Comment: "Managed by CloudFormation"
-      Name: !Join [".", [!Ref ClusterName, !Ref HostedZoneName]]
-      HostedZoneTags:
-      - Key: Name
-        Value: !Join ["-", [!Ref InfrastructureName, "int"]]
-      - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
-        Value: "owned"
-      VPCs: # Attempt to make this public.. So a single Lambda could attempt to hit each environment.
-      - VPCId: !Ref VpcId
-        VPCRegion: !Ref "AWS::Region"
+  #Dns:
+  #  Type: "AWS::Route53::HostedZone"
+  #  Properties:
+  #    HostedZoneConfig:
+  #      Comment: "Managed by CloudFormation"
+  #    Name: !Join [".", [!Ref ClusterName, !Ref HostedZoneName]]
+  #    HostedZoneTags:
+  #    - Key: Name
+  #      Value: !Join ["-", [!Ref InfrastructureName, "int"]]
+  #    - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
+  #      Value: "owned"
+  #    VPCs: # Attempt to make this public.. So a single Lambda could attempt to hit each environment.
+  #    - VPCId: !Ref VpcId
+  #      VPCRegion: !Ref "AWS::Region"
   AIOElb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -80,7 +86,7 @@ Resources:
     Type: AWS::Route53::RecordSetGroup
     Properties:
       Comment: Alias record for the API server
-      HostedZoneId: !Ref Dns
+      HostedZoneId: !Ref HostedZoneId #!Ref Dns
       RecordSets:
       - Name:
           !Join [
@@ -268,9 +274,9 @@ Resources:
       Runtime: "python3.7"
       Timeout: 120
 Outputs:
-  HostedZoneId:
-    Description: Hosted zone ID for the private DNS, which is required for private records.
-    Value: !Ref Dns
+  #HostedZoneId:
+  #  Description: Hosted zone ID for the private DNS, which is required for private records.
+  #  Value: !Ref Dns
   RegisterNlbIpTargetsLambda:
     Description: Lambda ARN useful to help register or deregister IP targets for these load balancers.
     Value: !GetAtt RegisterNlbIpTargets.Arn
