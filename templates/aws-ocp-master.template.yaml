@@ -24,7 +24,6 @@ Metadata:
           - PullSecret
           - SSHKey
           - RhcosAmi
-          - IgnitionLocation
       - Label:
           default: Cloud9 information
         Parameters:
@@ -63,8 +62,6 @@ Metadata:
         default: Public ssh Key
       RhcosAmi:
         default: "Red Hat Enterprise Linux CoreOS AMI ID"
-      IgnitionLocation:
-        default: "S3 base folder for Ignition Source"
       Cloud9AutoStopInMin:
         default: Cloud9 automatic stop time in minutes
       Cloud9InstanceType:
@@ -84,7 +81,7 @@ Parameters:
     Description: The CIDR block for the VPC.
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Default: 10.0.0.0/26
+    Default: 10.0.0.0/24
     Type: String
   AvailabilityZone:
     Description: The Availability Zone to use for the public subnet in the VPC.
@@ -95,7 +92,7 @@ Parameters:
       Zone 1.
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Default: 10.0.0.0/27
+    Default: 10.0.0.0/25
     Type: String
   RemoteAccessCIDR:
     Description: The remote CIDR range for allowing SSH into the Cloud9 instance. 
@@ -140,10 +137,6 @@ Parameters:
   RhcosAmi:
     Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
-  IgnitionLocation:
-    Default: s3://my-s3-bucket/myfolder
-    Description: Ignition S3 bucket and or folder location in which bootstrap.ign will be added to.
-    Type: String
   Cloud9AutoStopInMin:
     Description: The time the Cloud9 instance is automatically stopped after no use.
     Default: 30
@@ -203,6 +196,18 @@ Conditions:
     CreateIgnitionBucket: !Equals [!Ref 'IgnitionBucketName', '']
 #   OCP4: !Equals [!Ref OpenShiftVersion, '4.2']
 Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-vpc.template.yaml'
+      Parameters:
+        AvailabilityZone: 
+            Ref: AvailabilityZone
+        PublicSubnetCIDR:
+            Ref: PublicSubnetCIDR
+        VPCCIDR:
+          Ref: VPCCIDR
+          
   IamStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -210,6 +215,7 @@ Resources:
       Parameters:
         LambdaZipsBucketName: !If [ CreateLambdaZipsBucket, !Ref LambdaZipsBucket, !Ref LambdaZipsBucketName ]
         IgnitionBucketName: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+        ClusterName: !Ref ClusterName
         DeleteLambdaZipsBucketContents: !If [ CreateLambdaZipsBucket, "True", "False" ]
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -231,7 +237,15 @@ Resources:
         LambdaZipsBucketName: !If [ CreateLambdaZipsBucket, !Ref LambdaZipsBucket, !Ref LambdaZipsBucketName ]
         CopyZipsRoleArn: !GetAtt IamStack.Outputs.CopyZipsRoleArn
         ExecuteCFRoleArn: !GetAtt IamStack.Outputs.ExecuteCFRoleArn
+        ValidateDeploymentRoleArn: !GetAtt IamStack.Outputs.ValidateDeploymentRoleArn
         GenerateIgnitionConfigRoleArn: !GetAtt IamStack.Outputs.GenerateIgnitionConfigRoleArn
+        AuthBucket: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+        ClusterName: !Ref ClusterName
+        NumStudents: !Ref NumStudents
+        HostedZoneName: !Ref HostedZoneName
+        OpenShiftMirrorURL: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+        OpenShiftVersion : "4.2.12"
+        OpenShiftClientBinary: "openshift-client"
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
 
@@ -240,14 +254,14 @@ Resources:
     Type: Custom::LambdaDeployIgnition
     Properties:
       ServiceToken: !GetAtt LambdaStack.Outputs.DeployIgnitionLambdaArn
-      S3_BUCKET: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
-      PULL_SECRET: !Ref PullSecret
+      IgnitionBucket: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+      PullSecret: !Ref PullSecret
       SSHKey: !Ref SSHKey
       ClusterName: !Ref ClusterName
       NumStudents: !Ref NumStudents
-      OPENSHIFT_MIRROR_URL: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
-      OPENSHIFT_VERSION : "4.2.12"
-      OPENSHIFT_INSTALL_BINARY: "openshift-install"
+      OpenShiftMirrorURL: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+      OpenShiftVersion : "4.2.12"
+      OpenShiftInstallBinary: "openshift-install"
   
   StudentStacks:
     DependsOn: IgnitionExecute
@@ -258,9 +272,9 @@ Resources:
       KeyToUpdate: "StudentNum"
       StudentNum: !Ref NumStudents
       TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${StudentTemplate}"
+      VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
+      SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
       VPCCIDR: !Ref VPCCIDR
-      AvailabilityZone: !Ref AvailabilityZone
-      PublicSubnetCIDR: !Ref PublicSubnetCIDR
       RemoteAccessCIDR: !Ref RemoteAccessCIDR
       MasterStack: !Sub ${AWS::StackName}
       OpenShiftVersion: !Ref OpenShiftVersion
@@ -274,7 +288,30 @@ Resources:
       Cloud9InstanceType: !Ref Cloud9InstanceType
       QSS3BucketName: !Ref QSS3BucketName
       QSS3KeyPrefix: !Ref QSS3KeyPrefix
-      
+  
+  # This is currently commented out and being tested for the culprit of 
+  # Not allowing student1 to spin up. We should run the Lambda manually once
+  # they spin up - unless student1 fails to come up, then we need to test 
+  # A separate VPC
+  #ValidateEvent:
+  #  Type: AWS::Events::Rule
+  #  Properties:
+  #    Name: !Sub ${ClusterName}-ValidateEvent
+  #    ScheduleExpression:  "rate(10 minutes)"
+  #    Targets:
+  #      - Arn: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
+  #        Id: !Sub ${ClusterName}-ValidateDeploymentLambda
+  #
+  #LambdaInvokePermission:
+  #  Type: AWS::Lambda::Permission
+  #  Properties:
+  #    FunctionName: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
+  #    Action: lambda:InvokeFunction
+  #    Principal: events.amazonaws.com
+  #    SourceArn:
+  #      Fn::GetAtt: 
+  #        - "ValidateEvent"
+  #        - "Arn"
 #  DeleteBucketContents:
 #    Condition: CreateLambdaZipsBucket
 #    Type: Custom::DeleteBucketContents

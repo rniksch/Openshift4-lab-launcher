@@ -10,8 +10,32 @@ Parameters:
   ExecuteCFRoleArn:
     Description: CloudFormation Execution Arn
     Type: String
+  ValidateDeploymentRoleArn:
+    Description: Lambda to Validate OCP Deployments Arn
+    Type: String
   GenerateIgnitionConfigRoleArn:
     Description: OpenShift installer Executor (GenerateIngitionConfigs) Arn
+    Type: String
+  AuthBucket:
+    Description: S3 bucket and or folder location in which auth folder exists
+    Type: String
+  ClusterName:
+    Description: A short, representative cluster name to use for host names and other identifying names.
+    Type: String
+  NumStudents:
+    Description: The number of which student environment to provision for the lab.
+    Type: String
+  HostedZoneName:
+    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+    Type: String
+  OpenShiftMirrorURL:
+    Description: Base Mirror URL for downloading the OpenShift binaries
+    Type: String
+  OpenShiftVersion:
+    Description: The version of OpenShift to deploy for the lab.
+    Type: String
+  OpenShiftClientBinary:
+    Description: The specific Binary to download from the mirror
     Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
@@ -83,6 +107,23 @@ Resources:
       Objects:
       - functions/packages/DeployCF/lambda.zip
       - functions/packages/GenerateIgnitionFiles/lambda.zip
+      - functions/packages/helperlayer/lambda.zip
+      - functions/packages/scriptlayer/lambda.zip
+      - functions/packages/PostInstallTasks/lambda.zip
+  HelperLayer:
+    DependsOn: CopyZips
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket: !Ref LambdaZipsBucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/helperlayer/lambda.zip'
+  ScriptLayer:
+    DependsOn: CopyZips
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket: !Ref LambdaZipsBucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/scriptlayer/lambda.zip'
   DeployIgnitionLambda:
     DependsOn: CopyZips
     Type: AWS::Lambda::Function
@@ -109,9 +150,36 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/DeployCF/lambda.zip'
+  ValidateDeploymentLambda:
+    DependsOn: CopyZips
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: A Cron Lambda to check if the student environments are ready.
+      Handler: lambda_handler.handler
+      MemorySize: 256
+      Role: !Ref ValidateDeploymentRoleArn
+      Runtime: python3.7
+      Timeout: 900
+      Layers: [!Ref HelperLayer, !Ref ScriptLayer]
+      Environment:
+        Variables:
+          AuthBucket: !Ref AuthBucket
+          ClusterName: !Ref ClusterName
+          NumStudents: !Ref NumStudents
+          HostedZoneName: !Ref HostedZoneName
+          OpenShiftMirrorURL: !Ref OpenShiftMirrorURL
+          OpenShiftVersion: !Ref OpenShiftVersion
+          OpenShiftClientBinary: !Ref OpenShiftClientBinary
+      Code:
+        S3Bucket: !Ref LambdaZipsBucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/PostInstallTasks/lambda.zip'
           
 Outputs:
   DeployIgnitionLambdaArn:
     Value: !GetAtt DeployIgnitionLambda.Arn
   DeployCFLambdaArn:
     Value: !GetAtt DeployCFLambda.Arn
+  ValidateDeploymentLambdaArn:
+    Value: !GetAtt ValidateDeploymentLambda.Arn
+  ValidateDeploymentLambda:
+    Value: !Ref ValidateDeploymentLambda
