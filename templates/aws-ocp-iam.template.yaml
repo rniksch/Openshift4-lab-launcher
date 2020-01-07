@@ -7,6 +7,9 @@ Parameters:
   IgnitionBucketName:
     Description: Bucket Name where the IgnitionCondfig files should be placed
     Type: String
+  ClusterName:
+    Description: ClusterName base for the overall deployment, needed for the ValidateEvent that is created.
+    Type: String
   QSS3BucketName:
     Description: 'S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -56,8 +59,7 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
                   - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
-  DeleteBucketContentsRole:
-    Condition: CreateDeleteBucketContentsRole
+  ValidateDeploymentRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -70,15 +72,27 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: deletebucketcontents
+        - PolicyName: validatedeployments
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: s3:*
+                Action: 
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectAcl
                 Resource:
-                  - !Sub 'arn:aws:s3:::${LambdaZipsBucketName}/*'
-                  - !Sub 'arn:aws:s3:::${LambdaZipsBucketName}'
+                  - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
+                  - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
+        - PolicyName: DisableValidateCron
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:DisableRule
+                Resource:
+                  - !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ClusterName}-ValidateEvent"
   CopyZipsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -154,8 +168,8 @@ Resources:
                   - lambda:InvokeFunction
                 Resource: "*"
 Outputs:
-  DeleteBucketContentsRoleArn:
-    Value: !If [ CreateDeleteBucketContentsRole, !GetAtt DeleteBucketContentsRole.Arn, "" ]
+  ValidateDeploymentRoleArn:
+    Value: !GetAtt ValidateDeploymentRole.Arn
   GenerateIgnitionConfigRoleArn:
     Value: !GetAtt GenerateIgnitionConfigRole.Arn
   CopyZipsRoleArn:

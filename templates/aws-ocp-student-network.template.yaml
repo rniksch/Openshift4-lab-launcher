@@ -91,6 +91,15 @@ Resources:
       - Name:
           !Join [
             ".",
+            ["ssh", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
+          ]
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt AIOElb.CanonicalHostedZoneID
+          DNSName: !GetAtt AIOElb.DNSName
+      - Name:
+          !Join [
+            ".",
             ["api", !Ref ClusterName, !Join ["", [!Ref HostedZoneName, "."]]],
           ]
         Type: A
@@ -203,6 +212,28 @@ Resources:
         Ref: AIOElb
       Port: 443
       Protocol: TCP
+  SSHTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 22
+      Protocol: TCP
+      TargetType: ip
+      VpcId:
+        Ref: VpcId
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: "60"
+  SSHListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: SSHTargetGroup
+      LoadBalancerArn:
+        Ref: AIOElb
+      Port: 22
+      Protocol: TCP
   RegisterTargetLambdaIamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -250,6 +281,13 @@ Resources:
                 "elasticloadbalancing:DeregisterTargets",
               ]
             Resource: !Ref WebSSLTargetGroup
+          - Effect: "Allow"
+            Action:
+              [
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+              ]
+            Resource: !Ref SSHTargetGroup
   RegisterNlbIpTargets:
     Type: "AWS::Lambda::Function"
     Properties:
@@ -292,3 +330,6 @@ Outputs:
   WebSSLTargetGroupArn:
     Description: ARN of the external Web target group.
     Value: !Ref WebSSLTargetGroup
+  SSHTargetGroupArn:
+    Description: ARN of the external SSH target group.
+    Value: !Ref SSHTargetGroup

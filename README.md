@@ -59,11 +59,9 @@ When running a lot of tests, the S3 buckets can begin to add up. To clean up all
 
 To debug ignition lambda run
 
-```bash
-export PULL_SECRET=<YOUR PULL SECRET>
-export SSH_KEY=<YOUR PUBLIC SSH_KEY>
-make run_lambda
-```
+    export PULL_SECRET=<YOUR PULL SECRET>
+    export SSH_KEY=<YOUR PUBLIC SSH_KEY>
+    make run_lambda
 
 ## OCP 3.x
 

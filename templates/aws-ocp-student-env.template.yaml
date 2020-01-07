@@ -10,9 +10,9 @@ Metadata:
       - Label:
           default: Network configuration
         Parameters:
-          - AvailabilityZone
+          - VpcId
+          - SubnetId
           - VPCCIDR
-          - PublicSubnetCIDR
           - HostedZoneName
           - HostedZoneId
       - Label:
@@ -35,14 +35,14 @@ Metadata:
           - QSS3BucketName
           - QSS3KeyPrefix
     ParameterLabels:
-      AvailabilityZone:
-        default: Availability Zone
-      PublicSubnetCIDR:
-        default: Public subnet CIDR
-      RemoteAccessCIDR:
-        default: Remote access CIDR 
+      VpcId:
+        default: VPC ID
+      SubnetId:
+        default: "Subnet"
       VPCCIDR:
         default: VPC CIDR
+      RemoteAccessCIDR:
+        default: Remote access CIDR 
       OpenShiftVersion:
         default: OpenShift version
       MasterStack:
@@ -68,22 +68,17 @@ Metadata:
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
 Parameters:
+  VpcId:
+    Description: The VPC-scoped resources will belong to this VPC.
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: The subnet.
+    Type: AWS::EC2::Subnet::Id
   VPCCIDR:
     Description: The CIDR block for the VPC.
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Default: 10.0.0.0/26
-    Type: String
-  AvailabilityZone:
-    Description: The Availability Zone to use for the public subnet in the VPC.
-    Default: us-west-2a
-    Type: AWS::EC2::AvailabilityZone::Name
-  PublicSubnetCIDR:
-    Description: The CIDR block for the public (DMZ) subnet 1 located in Availability
-      Zone 1.
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
-    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Default: 10.0.0.0/27
+    Default: 10.0.0.0/24
     Type: String
   RemoteAccessCIDR:
     Description: The remote CIDR range for allowing SSH into the Cloud9 instance. 
@@ -159,18 +154,6 @@ Parameters:
     Default: aws-ocp/
     Type: String
 Resources:
-  VPCStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-vpc.template.yaml'
-      Parameters:
-        AvailabilityZone: 
-            Ref: AvailabilityZone
-        PublicSubnetCIDR:
-            Ref: PublicSubnetCIDR
-        PrivateSubnetCIDR: 10.0.0.32/27
-        VPCCIDR:
-          Ref: VPCCIDR
 
   NetworkStack:
     Type: AWS::CloudFormation::Stack
@@ -179,8 +162,8 @@ Resources:
       Parameters:
         ClusterName: !Sub ${ClusterName}-student${StudentNum}
         InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
-        VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
-        SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
+        VpcId: !Ref VpcId
+        SubnetId: !Ref SubnetId
         HostedZoneName: !Ref HostedZoneName
         HostedZoneId: !Ref HostedZoneId
 
@@ -193,7 +176,7 @@ Resources:
         CidrIp: !Ref RemoteAccessCIDR
       - IpProtocol: "-1"
         CidrIp: !Ref VPCCIDR
-      VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
+      VpcId: !Ref VpcId
 
   BootStrapStack: 
     DependsOn: NetworkStack
@@ -204,7 +187,7 @@ Resources:
         InstanceName: !Sub ${ClusterName}-student${StudentNum}-BOOT
         InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
         InstanceType: "i3.large"
-        SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
+        SubnetId: !Ref SubnetId
         RhcosAmi: !Ref RhcosAmi
         BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${ClusterName}-student${StudentNum}/bootstrap.ign
         MasterSecurityGroupId: !Ref MasterSecurityGroup
@@ -213,6 +196,7 @@ Resources:
         ServiceTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ApiTargetGroupArn'
         WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
         WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
+        SSHTargetGroupArn: !GetAtt 'NetworkStack.Outputs.SSHTargetGroupArn'
         HostedZoneName: !Sub ${ClusterName}.${HostedZoneName}
         HostedZoneId: !Ref HostedZoneId
         ControlPlane: "no"
@@ -228,13 +212,14 @@ Resources:
         InstanceType: "m4.xlarge"
         RhcosAmi: !Ref RhcosAmi
         BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${ClusterName}-student${StudentNum}/master.ign
-        SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
+        SubnetId: !Ref SubnetId
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
         ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
         ServiceTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ApiTargetGroupArn'
         WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
         WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
+        SSHTargetGroupArn: !GetAtt 'NetworkStack.Outputs.SSHTargetGroupArn'
         HostedZoneName: !Sub ${ClusterName}-student${StudentNum}.${HostedZoneName}
         HostedZoneId: !Ref HostedZoneId
         ControlPlane: "yes"
@@ -250,7 +235,7 @@ Resources:
       #OwnerArn: String
       #Repositories: 
       #  - Repository
-      SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
+      SubnetId: !Ref SubnetId
 Outputs:
   OpenShiftVersion:
     Value: !Ref OpenShiftVersion

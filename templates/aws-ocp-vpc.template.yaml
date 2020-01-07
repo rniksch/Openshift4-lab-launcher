@@ -10,15 +10,12 @@ Metadata:
           - AvailabilityZone
           - VPCCIDR
           - PublicSubnetCIDR
-          - PrivateSubnetCIDR
           - VPCTenancy
     ParameterLabels:
       AvailabilityZone: 
         default: Availability Zone
       PublicSubnetCIDR:
         default: Public subnet CIDR
-      PrivateSubnetCIDR:
-        default: Private subnet CIDR
       VPCCIDR:
         default: VPC CIDR
       VPCTenancy:
@@ -40,13 +37,6 @@ Parameters:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
     Default: 10.0.0.0/28
-    Type: String
-  PrivateSubnetCIDR:
-    Description: The CIDR block for the public (DMZ) subnet 1 located in Availability
-      Zone 1.
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
-    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Default: 10.0.0.16/28
     Type: String
   VPCTenancy:
     Description: "The allowed tenancy of instances launched into the VPC"
@@ -122,46 +112,46 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicSubnetRouteTable
-  PrivateSubnet:
-    Type: "AWS::EC2::Subnet"
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Ref PrivateSubnetCIDR
-      AvailabilityZone: !Ref AvailabilityZone
-      Tags:
-        - Key: Name
-          Value: !Sub 'Private Subnet for ${AWS::StackName}'
-  PrivateSubnetRouteTable:
-    Type: "AWS::EC2::RouteTable"
-    Properties:
-      VpcId: !Ref VPC
-  PrivateSubnetRouteTableAssociation:
-    Type: "AWS::EC2::SubnetRouteTableAssociation"
-    Properties:
-      SubnetId: !Ref PrivateSubnet
-      RouteTableId: !Ref PrivateSubnetRouteTable
-  EIP:
-    Type: "AWS::EC2::EIP"
-    Properties:
-      Domain: vpc
-  NAT:
-    DependsOn:
-    - VPCGatewayAttach
-    Type: "AWS::EC2::NatGateway"
-    Properties:
-      AllocationId:
-        "Fn::GetAtt":
-        - EIP
-        - AllocationId
-      SubnetId: !Ref PublicSubnet
-  Route:
-    Type: "AWS::EC2::Route"
-    Properties:
-      RouteTableId:
-        Ref: PrivateSubnetRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId:
-        Ref: NAT
+  #PrivateSubnet:
+  #  Type: "AWS::EC2::Subnet"
+  #  Properties:
+  #    VpcId: !Ref VPC
+  #    CidrBlock: !Ref PrivateSubnetCIDR
+  #    AvailabilityZone: !Ref AvailabilityZone
+  #    Tags:
+  #      - Key: Name
+  #        Value: !Sub 'Private Subnet for ${AWS::StackName}'
+  #PrivateSubnetRouteTable:
+  #  Type: "AWS::EC2::RouteTable"
+  #  Properties:
+  #    VpcId: !Ref VPC
+  #PrivateSubnetRouteTableAssociation:
+  #  Type: "AWS::EC2::SubnetRouteTableAssociation"
+  #  Properties:
+  #    SubnetId: !Ref PrivateSubnet
+  #    RouteTableId: !Ref PrivateSubnetRouteTable
+  #EIP:
+  #  Type: "AWS::EC2::EIP"
+  #  Properties:
+  #    Domain: vpc
+  #NAT:
+  #  DependsOn:
+  #  - VPCGatewayAttach
+  #  Type: "AWS::EC2::NatGateway"
+  #  Properties:
+  #    AllocationId:
+  #      "Fn::GetAtt":
+  #      - EIP
+  #      - AllocationId
+  #    SubnetId: !Ref PublicSubnet
+  #Route:
+  #  Type: "AWS::EC2::Route"
+  #  Properties:
+  #    RouteTableId:
+  #      Ref: PrivateSubnetRouteTable
+  #    DestinationCidrBlock: 0.0.0.0/0
+  #    NatGatewayId:
+  #      Ref: NAT
   S3Endpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -176,7 +166,7 @@ Resources:
           - '*'
       RouteTableIds:
       - !Ref PublicSubnetRouteTable
-      - !Ref PrivateSubnetRouteTable
+      #- !Ref PrivateSubnetRouteTable
       ServiceName: !Join
       - ''
       - - com.amazonaws.
@@ -194,11 +184,11 @@ Outputs:
     Value: !Ref PublicSubnet
     Export:
       Name: !Sub '${AWS::StackName}-PublicSubnetID'
-  PrivateSubnetID:
-    Description: Private subnet ID for newly created VPC
-    Value: !Ref PrivateSubnet
-    Export:
-      Name: !Sub '${AWS::StackName}-PrivateSubnetID'
+  #PrivateSubnetID:
+  #  Description: Private subnet ID for newly created VPC
+  #  Value: !Ref PrivateSubnet
+  #  Export:
+  #    Name: !Sub '${AWS::StackName}-PrivateSubnetID'
   PublicSubnetRouteTable:
     Description: Public subnet route table
     Value: !Ref PublicSubnetRouteTable

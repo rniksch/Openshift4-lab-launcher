@@ -78,7 +78,14 @@ def verify_sha256sum(filename, sha256sum):
         log.info("Expecting {}".format(sha256sum))
         return False
 
-def generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret):
+def update_cidr(student_num,multiplicitive,cidr,octect):
+    # If we have 10.30.0.0/16 and we need to update .30 we need to split and grab the second octect
+    # But computers start at 0 so it would be '1'
+    ip = cidr.split('.')
+    ip[octect] = int(ip[octect]) + (student_num*multiplicitive)
+    return '.'.join(map(str, ip))
+
+def generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret, student_num):
     assets_directory = download_path + student_cluster_name
     install_config_file = 'install-config.yaml'
     log.info("Generating ignition files for {}...".format(student_cluster_name))
@@ -90,6 +97,14 @@ def generate_ignition_files(openshift_install_binary, download_path, student_clu
     openshift_install_config['metadata']['name'] = student_cluster_name
     openshift_install_config['sshKey'] = ssh_key
     openshift_install_config['pullSecret'] = pull_secret
+    
+    # Network updates
+    orig_cluster_network = openshift_install_config['networking']['clusterNetwork'][0]['cidr']
+    # We need to update the cluster networks 10.30.0.0/16 to 10.31.0.0/16 or +1 in second octect for each student
+    openshift_install_config['networking']['clusterNetwork'][0]['cidr'] = update_cidr(student_num,1,orig_cluster_network,1)
+    orig_service_network = openshift_install_config['networking']['serviceNetwork'][0]
+    openshift_install_config['networking']['serviceNetwork'][0] = update_cidr(student_num,1,orig_service_network,1)
+    
     cluster_install_config_file = os.path.join(assets_directory, install_config_file)
     # Using this to get around the ssh-key multiline issue in yaml
     yaml.dump(openshift_install_config, open(cluster_install_config_file, 'w'), explicit_start=True, default_style='\"', width=4096)
@@ -151,20 +166,20 @@ def handler(event, context):
         cf_client = boto3.client('cloudformation')
         if event['RequestType'] == 'Delete':
             print("Delete request found, initiating..")
-            delete_contents_s3(s3_bucket=event['ResourceProperties']['S3_BUCKET'])
+            delete_contents_s3(s3_bucket=event['ResourceProperties']['IgnitionBucket'])
         elif event['RequestType'] == 'Update':
             print("Update sent, however, this is unsupported at this time.")
             pass
         else:
             print("Delete and Update not detected, proceeding with Create")
-            s3_bucket = event['ResourceProperties']['S3_BUCKET']
-            pull_secret = event['ResourceProperties'].get('PULL_SECRET', os.getenv('PULL_SECRET'))
+            s3_bucket = event['ResourceProperties']['IgnitionBucket']
+            pull_secret = event['ResourceProperties'].get('PullSecret', os.getenv('PULL_SECRET'))
             ssh_key = event['ResourceProperties'].get('SSHKey', os.environ.get('SSH_KEY'))
             cluster_name = event['ResourceProperties']['ClusterName']
             number_of_students = int(event['ResourceProperties']['NumStudents'])
-            openshift_client_base_mirror_url = event['ResourceProperties']['OPENSHIFT_MIRROR_URL']
-            openshift_version = event['ResourceProperties']['OPENSHIFT_VERSION']
-            openshift_install_binary = event['ResourceProperties']['OPENSHIFT_INSTALL_BINARY']
+            openshift_client_base_mirror_url = event['ResourceProperties']['OpenShiftMirrorURL']
+            openshift_version = event['ResourceProperties']['OpenShiftVersion']
+            openshift_install_binary = event['ResourceProperties']['OpenShiftInstallBinary']
             file_extension = '.tar.gz'
             if sys.platform == 'darwin':
                 openshift_install_os = '-mac-'
@@ -178,7 +193,7 @@ def handler(event, context):
             install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path)
             for i in range(number_of_students):
                 student_cluster_name = cluster_name + '-' + 'student' + str(i)
-                generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret)
+                generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret, student_num=i)
                 upload_to_s3(download_path, student_cluster_name, s3_bucket)
         print("Complete")
     except Exception:

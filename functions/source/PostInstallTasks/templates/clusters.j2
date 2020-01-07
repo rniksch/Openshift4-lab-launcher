@@ -1,0 +1,409 @@
+{% set OCP_VER = openshift_version.split('.')[0] | int %}
+<!DOCTYPE html>
+<html>
+<font face="verdana,sans,arial">
+<style>
+
+#control_node {
+  display: flex;
+}
+
+#login_info {
+  width: 1000px;
+}
+
+#example_login {
+  padding-top: 5px;
+}
+
+
+hr {
+  width: 80%;
+}
+
+td {
+  padding: 5px;
+  border-bottom: 1px solid #cccccc;
+}
+
+pre {
+  background: black;
+  color: #fff !important;
+  width: 100%;
+  padding: 5px;
+  max-width: 600px;
+  margin: 10px 0 10px 0;
+}
+
+.content{
+         display:none;
+         margin: 10px;
+}
+
+.header{
+  border-bottom: 1px solid #494a5a;
+  padding-bottom: 20px;
+}
+
+.student_logins {
+    width:100%;
+    border:1px solid #d3d3d3;
+}
+.student_logins div {
+    width:100%;
+}
+.student_logins .header {
+    background-color:#d3d3d3;
+    padding: 2px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.student_logins .studentx {
+    display: none;
+    padding : 5px;
+}
+
+.OpenShiftFooter {
+    background-color: #212121;
+    padding: 80px 0px;
+    font-size: 0.7em;
+    color: #fff;
+    font-weight: 300;
+}
+
+section {
+    padding: 40px 0px;
+}
+
+body {
+  line-height: 1.5;
+  font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.theme-dark,
+.theme-dark *{
+    color: #fff;
+}
+
+.theme-bg-gray{
+    background-color: #cac8c8;
+}
+
+.theme-bg-darkgray{
+    background-color: #a2a1a1;
+}
+
+.btn {
+    border-radius: 0px;
+    text-align: center;
+    padding: 10px 20px;
+    margin-bottom: 0px;
+}
+
+.btn.btn-block {
+    display: block;
+}
+
+.btn.btn-primary,
+.btn.btn-secondary {
+    background-color: #a2a1a1;
+    color: #fff;
+    padding: 30px;
+}
+
+.btn.btn-secondary {
+    background-color: #cac8c8;
+}
+
+.btn.btn-ghost{
+    border: 1px solid #fff;
+    color: #fff;
+    background: transparent;
+}
+
+
+.page-header {
+    background: #c00;
+    color: #fff;
+    text-align: center;
+}
+
+.page-header h1 {
+    font-size: 21px;
+    text-transform: uppercase;
+    font-weight: 400;
+}
+
+.page-header h2 {
+    font-size: 1em;
+    font-weight: 300;
+}
+
+
+.main-content h1{
+    color: #333;
+}
+
+.main-content h2{
+    color: #cc0000;
+}
+
+.main-content h3, .main-content h4, .main-content h5, .main-content h6 {
+    color: #c00;
+}
+
+
+footer.site-footer{
+    background-color: #212121;
+    padding: 80px 0px;
+    font-size: 0.7em;
+    color: #fff;
+    font-weight: 300;
+}
+
+
+
+@media screen and (min-width: 768px){
+
+    .page-header h1 {
+        font-size: 24px;
+    }
+
+    .main-content {
+        font-size: 1.125rem;
+    }
+}
+
+
+
+/* theme overrides */
+
+@media screen and (max-width: 42em){
+    .main-content {
+        padding: 2rem 0px;
+        font-size: 1rem;
+    }
+}
+
+@media screen and (max-width: 64em) and (min-width: 42em){
+    .main-content {
+        padding: 2rem 0px;
+        font-size: 1rem;
+    }
+}
+
+@media screen and (min-width: 64em){
+    .main-content {
+        max-width: none;
+        font-size: 1.1rem;
+    }
+}
+
+a {
+  test-decoration: none;
+}
+
+</style>
+<head>
+<link href=“https://fonts.googleapis.com/css?family=Overpass:300,400,700” rel=“stylesheet”>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script>
+$("document").ready(function(){
+  $click =  $('.studentinfo');   // Click selector
+
+
+  $click.click(function () {
+
+    $clicked = $(this);
+    $expand = $(this).parent('.header').next();  // Expand and collapse content selector
+
+        //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
+        $expand.slideToggle(500, function () {
+            //execute this after slideToggle is done
+            //change text of header based on visibility of content div
+        });
+
+    });
+});
+</script>
+
+</head>
+
+<body>
+
+
+    <section class="page-header">
+      <div class="container">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+              <h1 class="project-name">AWS Labs - RedHat OpenShift  <br/><strong class="text-nowrap">Technical Workshops</strong></h1>
+              <h2>The RedHat OpenShift AIO Labs is intended to get users familiar with the platform.</h2>
+
+                <a href="https://github.com/openshift/origin/tree/release-4.2/examples" class="btn btn-ghost">View OCP Examples on GitHub</a><br><br>
+
+              <h1>Workshop Name: {{cluster_name}}</h1>
+
+            </div>
+        </div>
+      </div>
+    </section>
+
+<section class="main-content">
+<section>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-8">
+                {% if OCP_VER == 4   %}
+                <h2>OpenShift 4.x Labs</h2>
+                <p>These workshops are focused OCP 4.X</p>
+                {% elif OCP_VER == 3 %}
+                <h2>OpenShift 3.x Labs</h2>
+                <p>These workshops are focused the previous version of OCP 3.X</p>
+                {% else %}
+                <p> Unknown version passed into template<p>
+                {% endif %}
+            </div>
+        </div>
+        {% if OCP_VER == 4 %}
+        <div class="row">
+          <div class="col-sm-4">
+              <a class="btn btn-secondary btn-block" href="https://ansible.github.io/workshops/exercises/ansible_network/">Need Updated link for OCP 4.x Exercises</a>
+          </div>
+
+          <div class="col-sm-4">
+              <a class="btn btn-secondary btn-block" href="https://ansible.github.io/workshops/decks/ansible_network.pdf">Need Updated link for OCP 4.x Deck</a>
+          </div>
+
+        </div>
+        {% elif OCP_VER == 3 %}
+        <div class="row">
+          <div class="col-sm-4">
+              <a class="btn btn-secondary btn-block" href="https://ansible.github.io/workshops/exercises/ansible_f5/">Need Updated link for OCP 3.x Exercises</a>
+          </div>
+
+          <div class="col-sm-4">
+              <a class="btn btn-secondary btn-block" href="https://ansible.github.io/workshops/decks/ansible_f5.pdf">Need Updated link for OCP 3.x Deck</a>
+          </div>
+
+        </div>
+        {% endif %}
+<br><br>
+
+    </div>
+</section>
+
+<hr>
+
+<section>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-8">
+                <h2>Workshop Resources</h2>
+                <p>Links and materials to help complete the exercises.</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-4">
+                <a class="btn btn-secondary btn-block" href="https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe">Download: PuTTY for Windows</a>
+            </div>
+
+            <div class="col-sm-4">
+                <a class="btn btn-secondary btn-block" href="https://docs.openshift.com/container-platform/4.2/welcome/index.html">OpenShift Documentation</a>
+            </div>
+
+            <div class="col-sm-4">
+                <a class="btn btn-secondary btn-block" href="https://blog.openshift.com/part-2-creating-a-template-a-technical-walkthrough/">OpenShift Template walkthrough</a>
+            </div>
+        </div>
+<br>
+    </div>
+</section>
+
+
+<section>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-8">
+                <h2>Class Information</h2>
+                <p>Click your student number for login information</p>
+            </div>
+        </div>
+
+        <div class="row">
+{% for cluster in clusters_information %}
+  <div class="student_logins">
+    <div class="header">
+
+      <p class="studentinfo">student{{cluster["number"]}} - Click to see login details</p>
+    </div>
+    <div class="content">
+To login to the AIO node use the following for SSH access:<br>
+<div id="control_node">
+<div id="login_info">
+<table>
+  <tr>
+    <td>username:</td>
+    {% if OCP_VER == 4 %}
+    <td><code>core</code></td>
+    {% elif OCP_VER == 3 %}
+    <td><code>ec2-user</code></td>
+    {% endif %}
+  </tr>
+  <tr>
+    <td>password:</td>
+    <td><code>Download the PEM file per Teacher's instructions</code></td>
+  </tr>
+  <tr>
+    <td>DNS:</td>
+    <td><code>{{ cluster["ssh-url"] }}</code></td>
+  </tr>
+  <tr>
+    <td>example_login</td>
+    {% if OCP_VER == 4 %}
+    <td><pre><code>ssh -i ~/location_of_env_PEM core@{{ cluster["ssh-url"] }}</code></pre></td>
+    {% elif OCP_VER == 3 %}
+    <td><pre><code>ssh -i ~/location_of_env_PEM ec2-user@{{ cluster["ssh-url"] }}</code></pre></td>
+    {% endif %}
+  </tr>
+  <tr>
+    <td class="header">AIO Console info</td>
+    <td class="header"></td>
+  </tr>
+  <tr>
+    <td>UI link:
+    <td><a href="{{ cluster['console-url'] }}">{{ cluster['console-url'] }}</a></td>
+  </tr>
+  <tr>
+    <td>UI Username:
+    <td><code>kubeadmin</code></td>
+  </tr>
+  <tr>
+    <td>UI Password:
+    <td><code>{{ cluster["kubeadmin-password"]}}</code></td>
+  </tr>
+</table>
+</div>
+</div>
+</div>
+
+{% endfor %}
+       </div>
+    </div>
+</section>
+
+</section>
+
+<div class="OpenShiftFooter">
+  <div class="container">
+  <p>AWS and Amazon Web Services are trademarks or registered trademarks of Amazon Web Services, Inc. or its affiliates. All rights reserved.
+  Red Hat, the Shadowman logo, OpenShift, and OCP are trademarks or registered trademarks of Red Hat, Inc. or its subsidiaries in the United States and other countries.
+
+  </p>
+  </div>
+</div>
+
+</body>
+</html>

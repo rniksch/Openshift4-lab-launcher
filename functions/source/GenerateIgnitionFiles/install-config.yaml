@@ -15,7 +15,7 @@ metadata:
   name: trace3-test3 # This must match your taskcat.yaml clustername
 networking:
   clusterNetwork:
-  - cidr: 10.128.0.0/14
+  - cidr: 10.32.0.0/16
     hostPrefix: 23
   networkType: OpenShiftSDN
   serviceNetwork:

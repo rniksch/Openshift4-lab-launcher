@@ -24,8 +24,9 @@ def stacks_by_status(cf_client, status_include_filter):
             yield s
 def parse_properties(properties):
     cf_params = {'Capabilities': ['CAPABILITY_IAM',
-                        'CAPABILITY_AUTO_EXPAND',
-                        'CAPABILITY_NAMED_IAM']
+                                  'CAPABILITY_AUTO_EXPAND',
+                                  'CAPABILITY_NAMED_IAM'],
+                'DisableRollback': True
     }
     cf_params["Parameters"] = []
     for key, value in properties.items():

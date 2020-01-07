@@ -21,6 +21,7 @@ tests:
       PullSecret: CHANGE-ME
       SSHKey: CHANGE-ME
       HostedZoneName: openshift.awsworkshop.io
+      HostedZoneId: Z3S2KL7IIXHCNP
       QSS3BucketName: "$[taskcat_autobucket]"
       QSS3KeyPrefix: "aws-ocp/"
     template: templates/aws-ocp-master.template.yaml
