@@ -4,8 +4,9 @@
 
 The solution within this repository deploys an All-in-One(AIO) OpenShift 3.x or 4.x cluster into an AWS region to be used as a lab or a training environment.
 
-## Deployment 
-There are two ways to deploy - either using [taskcat](https://github.com/aws-quickstart/taskcat) or the CloudFormation console. Tascat is a CLI based approach, that requires an extra step to install the tascat library. CloudFormation console is GUI based, but requires an extra step to upload this repository to an S3 bucket.
+## Deployment
+
+There are two ways to deploy - either using [taskcat](https://github.com/aws-quickstart/taskcat) or the CloudFormation console. Tascat is a CLI based approach, but requires an extra step to install the tascat library. CloudFormation console is GUI based, but requires an extra step to upload this repository to an S3 bucket.
 
 ### Deploy using tascat
 
@@ -38,6 +39,7 @@ taskcat test run -n
 ### Deploy using CloudFormation
 
 1. Upload this repository to an S3 bucket
+
 ### Deployment Troubleshooting
 
 #### Taskcat
@@ -58,9 +60,11 @@ When running a lot of tests, the S3 buckets can begin to add up. To clean up all
 
 To debug ignition lambda run
 
-    export PULL_SECRET=<YOUR PULL SECRET>
-    export SSH_KEY=<YOUR PUBLIC SSH_KEY>
-    make run_lambda
+```bash
+export PULL_SECRET=<YOUR PULL SECRET>
+export SSH_KEY=<YOUR PUBLIC SSH_KEY>
+make run_lambda
+```
 
 ## OCP 3.x
 
