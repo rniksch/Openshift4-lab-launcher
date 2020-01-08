@@ -85,7 +85,7 @@ Parameters:
     Type: String
   AvailabilityZone:
     Description: The Availability Zone to use for the public subnet in the VPC.
-    Default: us-west-2a
+    Default: us-west-2a #us-east-2a
     Type: AWS::EC2::AvailabilityZone::Name
   PublicSubnetCIDR:
     Description: The CIDR block for the public (DMZ) subnet 1 located in Availability
@@ -110,7 +110,7 @@ Parameters:
   ClusterName:
     Description: A short, representative cluster name to use for host names and other identifying names. This
       will be combined with the studentNumber to create the full cluster name
-    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    AllowedPattern: ^([a-z][a-z0-9\-]{0,26})$
     ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
     MaxLength: 12
     MinLength: 1
@@ -185,16 +185,17 @@ Parameters:
       uppercase letters, hyphens (-), and forward slash (/).
     Default: aws-ocp/
     Type: String
+Conditions:
+    CreateLambdaZipsBucket: !Equals [!Ref 'LambdaZipsBucketName', '']
+    CreateIgnitionBucket: !Equals [!Ref 'IgnitionBucketName', '']
+#   OCP4: !Equals [!Ref OpenShiftVersion, '4.2']
 # Mappings
 #   OpenShiftVersion:
 #     4.2:
 #       OPENSHIFT_MIRROR_URL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
 #       OPENSHIFT_VERSION: "4.2.12"
 #       OPENSHIFT_INSTALL_BINARY: "openshift-install"
-Conditions:
-    CreateLambdaZipsBucket: !Equals [!Ref 'LambdaZipsBucketName', '']
-    CreateIgnitionBucket: !Equals [!Ref 'IgnitionBucketName', '']
-#   OCP4: !Equals [!Ref OpenShiftVersion, '4.2']
+
 Resources:
   VPCStack:
     Type: AWS::CloudFormation::Stack
@@ -289,29 +290,25 @@ Resources:
       QSS3BucketName: !Ref QSS3BucketName
       QSS3KeyPrefix: !Ref QSS3KeyPrefix
   
-  # This is currently commented out and being tested for the culprit of 
-  # Not allowing student1 to spin up. We should run the Lambda manually once
-  # they spin up - unless student1 fails to come up, then we need to test 
-  # A separate VPC
-  #ValidateEvent:
-  #  Type: AWS::Events::Rule
-  #  Properties:
-  #    Name: !Sub ${ClusterName}-ValidateEvent
-  #    ScheduleExpression:  "rate(10 minutes)"
-  #    Targets:
-  #      - Arn: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
-  #        Id: !Sub ${ClusterName}-ValidateDeploymentLambda
-  #
-  #LambdaInvokePermission:
-  #  Type: AWS::Lambda::Permission
-  #  Properties:
-  #    FunctionName: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
-  #    Action: lambda:InvokeFunction
-  #    Principal: events.amazonaws.com
-  #    SourceArn:
-  #      Fn::GetAtt: 
-  #        - "ValidateEvent"
-  #        - "Arn"
+  ValidateEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${ClusterName}-ValidateEvent
+      ScheduleExpression:  "rate(45 minutes)"
+      Targets:
+        - Arn: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
+          Id: !Sub ${ClusterName}-ValidateDeploymentLambda
+  
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt: 
+          - "ValidateEvent"
+          - "Arn"
 #  DeleteBucketContents:
 #    Condition: CreateLambdaZipsBucket
 #    Type: Custom::DeleteBucketContents

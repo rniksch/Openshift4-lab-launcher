@@ -16,7 +16,7 @@ tests:
       RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       NumStudents: "$[taskcat_random-numbers]"
       ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
-      RhcosAmi: "ami-08e10b201e19fd5e7"
+      RhcosAmi: "ami-08e10b201e19fd5e7" #"ami-0bc59aaa7363b805d" 
       IgnitionLocation: s3://ignition-bucket/ #Bucket/File of ignition files
       PullSecret: CHANGE-ME
       SSHKey: CHANGE-ME
