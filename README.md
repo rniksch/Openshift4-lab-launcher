@@ -2,52 +2,51 @@
 
 ## Overview
 
-The solution within this repository is setup like a quickstart to make the code as re-usable and familiar as possible. It follows the same code structure and is capable of being tested with taskcat.
+The solution within this repository deploys an All-in-One(AIO) OpenShift 3.x or 4.x cluster into an AWS region to be used as a lab or a training environment.
 
-## Testing with TaskCat
+## Deployment 
+There are two ways to deploy - either using [taskcat](https://github.com/aws-quickstart/taskcat) or the CloudFormation console. Tascat is a CLI based approach, that requires an extra step to install the tascat library. CloudFormation console is GUI based, but requires an extra step to upload this repository to an S3 bucket.
 
-### Pre-Reqs
+### Deploy using tascat
 
-To install [taskcat](#https://aws-quickstart.github.io/install-taskcat.html)
+1. Install tascat by following the [taskcat installation instructions](https://aws-quickstart.github.io/install-taskcat.html)
 
-run make `make submodules`
+2. Update the [parameter overrides](https://github.com/aws-quickstart/taskcat#parameter-overrides) by creating `<PROJECT_ROOT>/.taskcat_overrides.yml` file. Use the example below as a starting point:
 
-If you do not have make configured, please download the submodules:
+```yaml
+ClusterName: <CLUSTER NAME>
+name: <CLOUDFORMATION STACK NAME>
+RemoteAccessCIDR: "73.42.71.116/32" # Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0
+RhcosAmi: "ami-01e7fdcb66157b224"
+AvailabilityZone: us-east-1a
+aws-ocp-master:
+  parameters:
+      NumStudents: "2"
+  regions:
+    - us-west-2
+SSHKey: "<PASTE YOUR PUBLIC SSH KEY HERE>
+PullSecret: '<PASTE PULL SECRET HERE>
+```
 
-    git submodule init
-    git submodule update
+3. Deploy the stack
 
-#### venv
+```bash
+# Runing the taskcat test command with -n flag creates the stack and doesn't destroy it
+taskcat test run -n
+```
 
-    python3 -m venv ~/cloudformationvenv
-    source ~/cloudformationvenv/bin/activate
-    pip install awscli taskcat
+### Deploy using CloudFormation
 
-#### Docker
+1. Upload this repository to an S3 bucket
+### Deployment Troubleshooting
 
-Use the following Curl|Bash script (Feel free to look inside first) to "install" taskcat via Docker. I then moved `taskcat.docker` to `/usr/local/bin/taskcat`
+#### Taskcat
 
-    curl -s https://raw.githubusercontent.com/aws-quickstart/taskcat/master/installer/docker-installer.sh | sh
-    mv taskcat.docker /usr/local/bin
+We have seen issues running taskcat under the following conditions, please verify:
 
-### Testing
-
-In order to test from taskcat you need an override file in your home .aws directory: `~/.aws/taskcat_global_override.json`
-
-    [  
-        {
-            "ParameterKey": "KeyPairName",
-            "ParameterValue": "<REPLACE_ME>"
-        }
-    ]
-
-Please also verify the [.taskcat.yml](.taskcat.yml) is updated with the region you wish to deploy to. The rest of the parameters should be answered in the `.taskcat_overrides.yml` and not committed to code.
-
-NOTE: We have seen issues running taskcat under the following conditions, please verify:
-    * Your Environment variables for AWS are what you want as they override your `~/.aws/credentials` and `~/.aws/config`
-    * You have initialized and updated the git submodules
-    * You Account has the correct IAM Permissions to execute in the region.
-    * Your default region and test region match.
+  * Your Environment variables for AWS are what you want as they override your `~/.aws/credentials` and `~/.aws/config` * You have initialized and updated the git submodules
+  * You Account has the correct IAM Permissions to execute in the region.
+  * Your default region and test region match.
 
 Then you need to be above the repository directory and execute, with make: `make test`. Without make:
 `taskcat -c aws-ocp/ci/config.yml`. Notice it is outside the actual repository.
