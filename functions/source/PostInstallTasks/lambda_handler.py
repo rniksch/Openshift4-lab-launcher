@@ -8,7 +8,7 @@ import boto3
 import subprocess
 import shlex
 import jinja2
-import time
+
 log = logging.getLogger(__name__)
 
 def get_from_s3(s3_bucket,student_cluster_name,key,dest_file_name):
@@ -53,8 +53,6 @@ def reduce_cluster_size(cluster_name, number_of_students, hosted_zone_name,
         fqdn_student_cluster_name = cluster_name + '-' + 'student' + str(i) + "." + hosted_zone_name
         complete_key = os.path.join(student_cluster_name, "completed")
         url="https://api." + fqdn_student_cluster_name + ":6443"
-        # ON our first found cluster that is ready let's sleep 5 minutes before executing.
-        sleep = True
         if not check_cluster_availability(url=url):
             continue
         if check_file_s3(s3_bucket=s3_bucket,key=complete_key):
@@ -70,11 +68,6 @@ def reduce_cluster_size(cluster_name, number_of_students, hosted_zone_name,
         #   * Current kubeconfig should be /tmp/<student_cluster_name>            
         cmd = "/opt/bin/openshift-4-scale-replicas /tmp/{}".format(student_cluster_name)
         try:
-            if sleep:
-                print("Sleeping")
-                time.sleep(300)
-                sleep = False
-            
             shared_functions.run_process(cmd)
             add_file_to_s3(s3_bucket=s3_bucket,body="completed",key=complete_key,
                             content_type="text/plain", acl="private")
