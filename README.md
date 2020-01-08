@@ -19,7 +19,7 @@ ClusterName: <CLUSTER NAME>
 RemoteAccessCIDR: "73.42.71.116/32" # Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0
 NumStudents: "2"
 SSHKey: "<PASTE YOUR PUBLIC SSH KEY HERE>"
-PullSecret: '<PASTE PULL SECRET HERE>' # The single quotes are necessary due to pull secret containing doublequotes
+PullSecret: '<PASTE PULL SECRET HERE>' # The single quotes are necessary due to pull secret containing double quotes
 ```
 
 3. Deploy the stack
