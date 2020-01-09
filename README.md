@@ -31,7 +31,9 @@ taskcat test run -n
 
 ### Deploy using CloudFormation
 
-1. Upload this repository to an S3 bucket
+1. Upload this repository to an S3 bucket. Note the Object URL for the [aws-ocp-master.template.yml](templates/aws-ocp-master.template.yml) file.
+2. Create a new CloudFormation stack by using the S3 URL from step 3.
+3. Fill out the deployment parameters and deploy the stack.
 
 ### Deployment Troubleshooting
 
