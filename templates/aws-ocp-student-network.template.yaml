@@ -17,7 +17,6 @@ Metadata:
         default: "DNS"
       Parameters:
       - HostedZoneName
-      - HostedZoneId
     ParameterLabels:
       ClusterName:
         default: "Cluster Name"
@@ -29,8 +28,6 @@ Metadata:
         default: "Private Subnets"
       HostedZoneName:
         default: "Public Hosted Zone Name"
-      HostedZoneId:
-        default: "Public Hosted Zone ID"
 Parameters:
   ClusterName:
     Description: A short, representative cluster name to use for host names and other identifying names.
@@ -49,9 +46,6 @@ Parameters:
   HostedZoneName:
     Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
     Default: "example.com"
-    Type: String
-  HostedZoneId:
-    Description: The Route53 ZoneID to register targets with such as Z10388841I9PET6WI93F3
     Type: String
   SubnetId:
     Description: The subnet.
@@ -86,7 +80,7 @@ Resources:
     Type: AWS::Route53::RecordSetGroup
     Properties:
       Comment: Alias record for the API server
-      HostedZoneId: !Ref HostedZoneId #!Ref Dns
+      HostedZoneName: !Sub '${HostedZoneName}.'
       RecordSets:
       - Name:
           !Join [

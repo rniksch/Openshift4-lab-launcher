@@ -4,6 +4,16 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: Lab information
+        Parameters:
+          - OpenShiftVersion
+          - ClusterName
+          - HostedZoneName
+          - NumStudents
+          - PullSecret
+          - SSHKey
+          - RhcosAmi
+      - Label:
           default: Security configuration
         Parameters:
           - RemoteAccessCIDR
@@ -14,29 +24,18 @@ Metadata:
           - VPCCIDR
           - PublicSubnetCIDR          
       - Label:
-          default: Lab information
-        Parameters:
-          - OpenShiftVersion
-          - ClusterName
-          - HostedZoneName
-          - HostedZoneId
-          - NumStudents
-          - PullSecret
-          - SSHKey
-          - RhcosAmi
-      - Label:
           default: Cloud9 information
         Parameters:
           - Cloud9AutoStopInMin
           - Cloud9InstanceType
       - Label:
-          default: AWS Quick Start Configuration
+          default: CloudFormation Template Configuration
         Parameters:
-          - LambdaZipsBucketName
-          - IgnitionBucketName
-          - StudentTemplate
           - QSS3BucketName
           - QSS3KeyPrefix
+          - StudentTemplate
+          - LambdaZipsBucketName
+          - IgnitionBucketName
     ParameterLabels:
       AvailabilityZone:
         default: Availability Zone
@@ -52,8 +51,6 @@ Metadata:
         default: Cluster Name prefix
       HostedZoneName:
         default: Hosted DNS zone name
-      HostedZoneId:
-        default: "Public Hosted Zone ID"
       NumStudents:
         default: Number of students
       PullSecret:
@@ -73,9 +70,9 @@ Metadata:
       StudentTemplate:
         default: Student CloudFormation template name
       QSS3BucketName:
-        default: Quick Start S3 bucket name
+        default: CloudFormation templates S3 bucket name
       QSS3KeyPrefix:
-        default: Quick Start S3 key prefix          
+        default: CloudFormation templates S3 key prefix          
 Parameters:
   VPCCIDR:
     Description: The CIDR block for the VPC.
@@ -119,9 +116,6 @@ Parameters:
     Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
     Default: "example.com"
     Type: String
-  HostedZoneId:
-    Description: The Route53 ZoneID to register targets with such as Z10388841I9PET6WI93F3
-    Type: String
   NumStudents:
     Description: The number of student environments to provision for the lab.
     Default: 1
@@ -161,27 +155,27 @@ Parameters:
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
     AllowedPattern: ^[0-9a-zA-Z.]+([0-9a-zA-Z-.]*[0-9a-zA-Z.])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+    ConstraintDescription: The bucket name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
     Default: aws-ocp-student-env.template.yaml
     Type: String
   QSS3BucketName:
-    Description: S3 bucket name for the Quick Start assets. This string can include
+    Description: S3 bucket name for the CloudFormation templates. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+    ConstraintDescription: The bucket name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
-    Default: aws-quickstart
+    Default: ''
     Type: String
   QSS3KeyPrefix:
-    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
-      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+    Description: S3 folder name for the CloudFormation templates. This string can include
+      numbers, lowercase letters, uppercase letters, hyphens (-), and
       forward slash (/).
     AllowedPattern: ^[0-9a-zA-Z-/]*$
-    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+    ConstraintDescription: S3 folder name can include numbers, lowercase letters,
       uppercase letters, hyphens (-), and forward slash (/).
     Default: aws-ocp/
     Type: String
@@ -282,7 +276,6 @@ Resources:
       NumStacks: !Ref NumStudents
       ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
-      HostedZoneId: !Ref HostedZoneId
       RhcosAmi: !Ref RhcosAmi
       IgnitionLocation: !If [CreateIgnitionBucket, !Sub "s3://${IgnitionBucket}", !Sub "s3://${IgnitionBucketName}" ]
       Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
