@@ -6,25 +6,18 @@ The solution within this repository deploys an All-in-One(AIO) OpenShift 3.x or 
 
 ## Deployment
 
-There are two ways to deploy - either using [taskcat](https://github.com/aws-quickstart/taskcat) or the CloudFormation console. Tascat is a CLI based approach, but requires an extra step to install the tascat library. CloudFormation console is GUI based, but requires an extra step to upload this repository to an S3 bucket.
+There are two ways to deploy - either using [taskcat](https://github.com/aws-quickstart/taskcat) or the CloudFormation console. taskcat is a CLI based approach, but requires an extra step to install the taskcat library. CloudFormation console is GUI based, but requires an extra step to upload this repository to an S3 bucket.
 
-### Deploy using tascat
+### Deploy using taskcat
 
-1. Install tascat by following the [taskcat installation instructions](https://aws-quickstart.github.io/install-taskcat.html)
+1. Install taskcat by following the [taskcat installation instructions](https://aws-quickstart.github.io/install-taskcat.html)
 
 2. Update the [parameter overrides](https://github.com/aws-quickstart/taskcat#parameter-overrides) by creating `<PROJECT_ROOT>/.taskcat_overrides.yml` file. Use the example below as a starting point:
 
 ```yaml
 ClusterName: <CLUSTER NAME>
-name: <CLOUDFORMATION STACK NAME>
 RemoteAccessCIDR: "73.42.71.116/32" # Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0
-RhcosAmi: "ami-01e7fdcb66157b224"
-AvailabilityZone: us-east-1a
-aws-ocp-master:
-  parameters:
-      NumStudents: "2"
-  regions:
-    - us-west-2
+NumStudents: "2"
 SSHKey: "<PASTE YOUR PUBLIC SSH KEY HERE>
 PullSecret: '<PASTE PULL SECRET HERE>
 ```
