@@ -13,13 +13,13 @@ tests:
 #    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
   aws-ocp-master:
     parameters:
-      AvailabilityZone: us-west-2a # Corresponds to the region
-      RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+      AvailabilityZone: us-west-2a              # Corresponds to the region
+      RemoteAccessCIDR: "107.145.55.108/32"     # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       NumStudents: "$[taskcat_random-numbers]"
-      ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
-      RhcosAmi: "ami-08e10b201e19fd5e7" #"ami-0bc59aaa7363b805d"
+      ClusterName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
+      RhcosAmi: "ami-08e10b201e19fd5e7"         #"ami-0bc59aaa7363b805d"
       PullSecret: CHANGE-ME
-      SSHKey: CHANGE-ME
+      SSHKey: CHANGE-ME                         # Can be overwritten in .taskcat_overrides.yml
       HostedZoneName: openshift.awsworkshop.io
       HostedZoneId: Z3S2KL7IIXHCNP
       QSS3BucketName: "$[taskcat_autobucket]"
