@@ -23,7 +23,7 @@ tests:
       HostedZoneName: openshift.awsworkshop.io
       HostedZoneId: Z3S2KL7IIXHCNP
       QSS3BucketName: "$[taskcat_autobucket]"
-      QSS3KeyPrefix: "aws-ocp/"
+      QSS3KeyPrefix: "t3-jacob-test3/"
     template: templates/aws-ocp-master.template.yaml
 # aws-ocp-4-2:
 #   parameters:
