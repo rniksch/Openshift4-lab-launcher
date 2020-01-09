@@ -1,8 +1,8 @@
 project:
-  name: t3-jacob-test4
+  name: aws-ocp
   owner: quickstart-eng@amazon.com
   regions:
-    - us-east-1
+    - us-west-2
 
 tests:
 #  aws-ignition-file-lambda:
@@ -13,7 +13,7 @@ tests:
 #    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
   aws-ocp-master:
     parameters:
-      AvailabilityZone: us-east-1a # Corresponds to the region
+      AvailabilityZone: us-west-2a # Corresponds to the region
       RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       NumStudents: "$[taskcat_random-numbers]"
       ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
@@ -23,7 +23,7 @@ tests:
       HostedZoneName: openshift.awsworkshop.io
       HostedZoneId: Z3S2KL7IIXHCNP
       QSS3BucketName: "$[taskcat_autobucket]"
-      QSS3KeyPrefix: "t3-jacob-test4/"
+      QSS3KeyPrefix: "aws-ocp/"
     template: templates/aws-ocp-master.template.yaml
 # aws-ocp-4-2:
 #   parameters:
