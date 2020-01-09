@@ -1,5 +1,5 @@
 project:
-  name: aws-ocp
+  name: t3-jacob-test3
   owner: quickstart-eng@amazon.com
   regions:
     - us-west-2
@@ -13,7 +13,7 @@ tests:
 #    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
   aws-ocp-master:
     parameters:
-        AvailabilityZone: us-west-1a # Corresponds to the region
+      AvailabilityZone: us-west-2a # Corresponds to the region
       RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       NumStudents: "$[taskcat_random-numbers]"
       ClusterName: CHANGE-ME               # This is overwritten in .taskcat_overrides.yml
