@@ -190,7 +190,7 @@ Resources:
         WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
         WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
         SSHTargetGroupArn: !GetAtt 'NetworkStack.Outputs.SSHTargetGroupArn'
-        HostedZoneName: !Sub ${ClusterName}.${HostedZoneName}
+        HostedZoneName: !Ref HostedZoneName
         ControlPlane: "no"
 
   ControlPlaneStack:
@@ -212,7 +212,7 @@ Resources:
         WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
         WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
         SSHTargetGroupArn: !GetAtt 'NetworkStack.Outputs.SSHTargetGroupArn'
-        HostedZoneName: !Sub ${ClusterName}-student${StudentNum}.${HostedZoneName}
+        HostedZoneName: !Ref HostedZoneName
         ControlPlane: "yes"
 
   Cloud9Instance:

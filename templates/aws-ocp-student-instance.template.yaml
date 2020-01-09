@@ -273,7 +273,7 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: !Sub '${HostedZoneName}.'
-      Name: !Join [".", ["etcd-0", !Ref HostedZoneName]]
+      Name: !Join [".", ["etcd-0", !Ref InfrastructureName, !Ref HostedZoneName]]
       ResourceRecords:
       - !GetAtt Instance.PrivateIp
       TTL: "60"
@@ -284,11 +284,11 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: !Sub '${HostedZoneName}.'
-      Name: !Join [".", ["_etcd-server-ssl._tcp", !Ref HostedZoneName]]
+      Name: !Join [".", ["_etcd-server-ssl._tcp", !Ref InfrastructureName, !Ref HostedZoneName]]
       ResourceRecords:
       - !Join [
         " ",
-        ["0 10 2380", !Join [".", ["etcd-0", !Ref HostedZoneName]]],
+        ["0 10 2380", !Join [".", ["etcd-0", !Ref InfrastructureName, !Ref HostedZoneName]]],
       ]
       TTL: "60"
       Type: SRV
