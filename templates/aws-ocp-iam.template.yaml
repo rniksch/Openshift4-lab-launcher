@@ -150,6 +150,7 @@ Resources:
                   - route53:ChangeTagsForResource
                   - route53:ChangeResourceRecordSets
                   - route53:ListResourceRecordSets
+                  - route53:ListHostedZones
                   - iam:GetRole
                   - iam:CreateRole
                   - iam:DeleteRole

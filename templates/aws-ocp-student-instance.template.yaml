@@ -21,7 +21,6 @@ Metadata:
       - SubnetId
       - MasterSecurityGroupId
       - HostedZoneName
-      - HostedZoneId
     - Label:
         default: "Load Balancer Automation"
       Parameters:
@@ -43,8 +42,6 @@ Metadata:
         default: "Master Security Group ID"
       HostedZoneName:
         default: "Hosted Zone Name"
-      HostedZoneId:
-        default: "Hosted Zone ID"
       BootstrapIgnitionLocation:
         default: "Bootstrap ignition location"
       RegisterNlbIpTargetsLambdaArn:
@@ -120,9 +117,6 @@ Parameters:
     Type: String
   SSHTargetGroupArn:
     Description: ARN for the SSH load balancer target group.
-    Type: String
-  HostedZoneId:
-    Description: The Route53 zone ID to register the etcd targets with, such as Z21IXYZABCZ2A4.
     Type: String
   HostedZoneName:
     Description: The Route53 zone to register the targets with, such as cluster.example.com. Omit the trailing period.
@@ -278,8 +272,8 @@ Resources:
     Condition: DoRegistration
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneId: !Ref HostedZoneId
-      Name: !Join [".", ["etcd-0", !Ref HostedZoneName]]
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Join [".", ["etcd-0", !Ref InfrastructureName, !Ref HostedZoneName]]
       ResourceRecords:
       - !GetAtt Instance.PrivateIp
       TTL: "60"
@@ -289,12 +283,12 @@ Resources:
     Condition: DoRegistration
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneId: !Ref HostedZoneId
-      Name: !Join [".", ["_etcd-server-ssl._tcp", !Ref HostedZoneName]]
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Join [".", ["_etcd-server-ssl._tcp", !Ref InfrastructureName, !Ref HostedZoneName]]
       ResourceRecords:
       - !Join [
         " ",
-        ["0 10 2380", !Join [".", ["etcd-0", !Ref HostedZoneName]]],
+        ["0 10 2380", !Join [".", ["etcd-0", !Ref InfrastructureName, !Ref HostedZoneName]]],
       ]
       TTL: "60"
       Type: SRV
