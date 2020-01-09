@@ -1,5 +1,5 @@
 project:
-  name: t3-jacob-test3
+  name: aws-ocp
   owner: quickstart-eng@amazon.com
   regions:
     - us-west-2
