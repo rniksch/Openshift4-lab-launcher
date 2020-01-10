@@ -297,12 +297,19 @@ Resources:
           import cfnresponse
           def handler(event, context):
             elb = boto3.client('elbv2')
-            if event['RequestType'] == 'Delete':
-              elb.deregister_targets(TargetGroupArn=event['ResourceProperties']['TargetArn'],Targets=[{'Id': event['ResourceProperties']['TargetIp']}])
-            elif event['RequestType'] == 'Create':
-              elb.register_targets(TargetGroupArn=event['ResourceProperties']['TargetArn'],Targets=[{'Id': event['ResourceProperties']['TargetIp']}])
-            responseData = {}
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, event['ResourceProperties']['TargetArn']+event['ResourceProperties']['TargetIp'])
+            status = cfnresponse.SUCCESS
+            try:
+              if event['RequestType'] == 'Delete':
+                elb.deregister_targets(TargetGroupArn=event['ResourceProperties']['TargetArn'],Targets=[{'Id': event['ResourceProperties']['TargetIp']}])
+              elif event['RequestType'] == 'Create':
+                elb.register_targets(TargetGroupArn=event['ResourceProperties']['TargetArn'],Targets=[{'Id': event['ResourceProperties']['TargetIp']}])
+                responseData = {}
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, event['ResourceProperties']['TargetArn']+event['ResourceProperties']['TargetIp'])
+            except Exception:
+                logging.error('Unhandled exception', exc_info=True)
+                status = cfnresponse.FAILED
+            finally:
+                cfnresponse.send(event, context, status, {}, None)
       Runtime: "python3.7"
       Timeout: 120
 Outputs:

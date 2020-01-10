@@ -8,7 +8,7 @@ def stack_exists(cf_client, stack_name):
     stack_status_codes = ['CREATE_COMPLETE',
                         'UPDATE_COMPLETE',
                         'UPDATE_ROLLBACK_COMPLETE',
-                        'ROLLBACK_COMPLETE']
+                        'ROLLBACK_COMPLETE', 'CREATE_FAILED']
     for s in stacks_by_status(cf_client, stack_status_codes):
         if s.get('StackName', '') == stack_name:
             return s
@@ -46,7 +46,7 @@ def parse_properties(properties):
             cf_params["Parameters"].append(temp)
     return cf_params
 
-def loop_child_stacks(cf_client, cf_params, action, now, end, **kwargs):
+def loop_child_stacks(cf_client, cf_params, action, **kwargs):
     waiter_array = []
     numStacks = 1
     current_numStacks = 0
@@ -75,6 +75,8 @@ def loop_child_stacks(cf_client, cf_params, action, now, end, **kwargs):
     elif "NumStacks" in cf_params:    
         numStacks = cf_params["NumStacks"]
         del cf_params["NumStacks"]
+    stack_state = 'stack_create_complete'
+    waiter = cf_client.get_waiter(stack_state)
     for x in range(numStacks):
         if found:
             cf_params["Parameters"][counter]["ParameterValue"] = str(x)
@@ -82,7 +84,6 @@ def loop_child_stacks(cf_client, cf_params, action, now, end, **kwargs):
         cf_params["StackName"] = "{}-{}".format(cf_params["StackName"],x)
         stack = stack_exists(cf_client=cf_client, stack_name=cf_params["StackName"])
         cur_action = action
-        stack_state = 'stack_create_complete'
         if 'old_params' in vars():
             print("action is {} and x is {} and old_params Numstacks {}".format(action,x,old_params["NumStacks"]))
         if action == "update":
@@ -95,50 +96,44 @@ def loop_child_stacks(cf_client, cf_params, action, now, end, **kwargs):
         if cur_action == "create" and stack == None:
             stack_result = cf_client.create_stack(**cf_params)
             waiter_array.append(cf_params["StackName"])
+            waiter.config.max_attempts = 10
         
         elif cur_action == "delete" and stack:
             print("found and deleting stack")
             stack_result = cf_client.delete_stack(StackName=cf_params["StackName"])
             waiter_array.append(cf_params["StackName"])
             stack_state = 'stack_delete_complete'
-
         cf_params["StackName"] = original_name
-    waiter = cf_client.get_waiter(stack_state)
+    
     print(waiter.config)
-    waiter.config.max_attempts = 10
-    wait_to_complete(cf_client,waiter,waiter_array,now=now, end=end)
+    wait_to_complete(cf_client,waiter,waiter_array)
         
-def wait_to_complete(cf_client,waiter, waiter_array, now, end):
+def wait_to_complete(cf_client,waiter, waiter_array):
     while( len(waiter_array) > 0 ):
-        if now > end:
-            print("Time has ran out to wait, must exit")
-            break
         cur_waiter = waiter_array.pop()
         print('...waiting for stack to be ready...')
         try:
             waiter.wait(StackName=cur_waiter)
-        except Exception:
-            print("Caught exception in Waiter..")
+        except Exception as e:
+            print("Caught exception in Waiter..{}".format(e))
         stack = stack_exists(cf_client=cf_client, stack_name=cur_waiter)
 
 def handler(event,context):
     logger.debug(event)
     status = cfnresponse.SUCCESS
-    now = datetime.datetime.now()
-    end = datetime.datetime.now() + datetime.timedelta(minutes=14)
     try:
         cf_client = boto3.client('cloudformation')
         cf_params = parse_properties(event['ResourceProperties'])
         if event['RequestType'] == 'Delete':
             print("Inside delete")
             logger.info(event)
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="delete", now=now, end=end)
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="delete")
         elif event['RequestType'] == 'Update':
             old_params = parse_properties(event['OldResourceProperties'])
             print("Inside update and old_params is {}".format(old_params))
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="update", now=now, end=end, old_params=old_params)
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="update", old_params=old_params)
         else:
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="create", now=now, end=end)
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="create")
         print("Completed")
     except Exception:
         logging.error('Unhandled exception', exc_info=True)

@@ -37,6 +37,16 @@ Parameters:
   OpenShiftClientBinary:
     Description: The specific Binary to download from the mirror
     Type: String
+  StudentTemplate:
+    Description: Template name for the nested student stacks to create. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    AllowedPattern: ^[0-9a-zA-Z.]+([0-9a-zA-Z-.]*[0-9a-zA-Z.])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-ocp-student-env.template.yaml
+    Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: 'Quick Start bucket name can include numbers, lowercase
@@ -170,6 +180,9 @@ Resources:
           OpenShiftMirrorURL: !Ref OpenShiftMirrorURL
           OpenShiftVersion: !Ref OpenShiftVersion
           OpenShiftClientBinary: !Ref OpenShiftClientBinary
+          StudentTemplate: !Ref StudentTemplate
+          QSS3BucketName: !Ref QSS3BucketName
+          QSS3KeyPrefix: !Ref QSS3KeyPrefix
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/PostInstallTasks/lambda.zip'
