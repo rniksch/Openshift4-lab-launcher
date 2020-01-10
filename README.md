@@ -4,6 +4,8 @@
 
 The solution within this repository deploys an All-in-One(AIO) OpenShift 3.x or 4.x cluster into an AWS region to be used as a lab or a training environment.
 
+![4.2 Diagram](assets/aws_ocp42.svg)
+
 ## Deployment
 
 There are two ways to deploy - either using [taskcat](https://github.com/aws-quickstart/taskcat) or the CloudFormation console. taskcat is a CLI based approach, but requires an extra step to install the taskcat library. CloudFormation console is GUI based, but requires an extra step to upload this repository to an S3 bucket.
@@ -35,6 +37,22 @@ taskcat test run -n
 2. Create a new CloudFormation stack by using the S3 URL from step 3.
 3. Fill out the deployment parameters and deploy the stack.
 
+### OCP 4.x Noteworthy Parameters
+
+| Parameter        | Example                                 | Description                                                           |
+| ---------------- | --------------------------------------- | --------------------------------------------------------------------- |
+| OpenShiftVersion | "4.2"                                   | OpenShift version                                                     |
+| ClusterName      | "ocp42class"                            | OpenShift cluster name                                                |
+| HostedZoneName   | "openshift.awsworkshop.io"              | Route53 hosted zone name                                              |
+| NumStudents      | "20"                                    | Number of student environments to provivision                         |
+| PullSecret       | '{"auths":{"cloud.openshift.com": ... ' | Pull secret obtained from [cloud.redhat.com](https://cloud.redhat.com/openshift/install), it's big |
+| SSHKey           | "ssh-rsa AAAAB3NzaC1ycAAA ..."          | Public SSH key for ssh access                                         |
+| RhcosAmi         | "ami-08e10b201e19fd5e7"                 | RHCOS AMI ID                                                          |
+| AvailabilityZone | "us-west-2a"                            | Has to correspond to the region                                       |
+| PublicSubnetCIDR | "107.145.55.108/32"                     | Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0 |
+| QSS3BucketName   | "tcat-t3-test6-48ska2s"                 | S3 bucket for CloudFormation templates                                |
+| QSS3KeyPrefix    | "aws-ocp/"                              | S3 bucket path for CloudFormation templates, mainly used for taskcat  |
+
 ### Deployment Troubleshooting
 
 #### Taskcat
@@ -60,11 +78,3 @@ export PULL_SECRET=<YOUR PULL SECRET>
 export SSH_KEY=<YOUR PUBLIC SSH_KEY>
 make run_lambda
 ```
-
-## OCP 3.x
-
-## OCP 4.x
-
-### OCP 4.1 Hardware Requirements
-
-4 CPU, 8GB RAM, 35GB storage
