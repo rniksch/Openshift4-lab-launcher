@@ -215,20 +215,20 @@ Resources:
         HostedZoneName: !Ref HostedZoneName
         ControlPlane: "yes"
 
-  Cloud9Instance:
-    DependsOn: ControlPlaneStack
-    Type: AWS::Cloud9::EnvironmentEC2
-    Properties: 
-      AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
-      Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
-      InstanceType: !Ref Cloud9InstanceType
-      Name: !Sub 'student${StudentNum}'
-      #OwnerArn: String
-      #Repositories: 
-      #  - Repository
-      SubnetId: !Ref SubnetId
+  #Cloud9Instance:
+  #  DependsOn: ControlPlaneStack
+  #  Type: AWS::Cloud9::EnvironmentEC2
+  #  Properties: 
+  #    AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
+  #    Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
+  #    InstanceType: !Ref Cloud9InstanceType
+  #    Name: !Sub 'student${StudentNum}'
+  #    #OwnerArn: String
+  #    #Repositories: 
+  #    #  - Repository
+  #    SubnetId: !Ref SubnetId
 Outputs:
   OpenShiftVersion:
     Value: !Ref OpenShiftVersion
-  Cloud9InstanceArn:
-    Value: !GetAtt Cloud9Instance.Arn
+  #Cloud9InstanceArn:
+  #  Value: !GetAtt Cloud9Instance.Arn

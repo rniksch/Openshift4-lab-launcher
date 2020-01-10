@@ -5,9 +5,12 @@ import os
 import logging
 import sys
 import boto3
+from botocore.exceptions import ClientError
 import subprocess
 import shlex
 import jinja2
+import time
+import json
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +33,7 @@ def check_file_s3(s3_bucket,key):
         print("File at location {} found".format(key))
         return True
     except Exception as e:
-        print("File not found")
+        print("File not found at {} and key {}".format(s3_bucket,key))
         return False
     
 def check_cluster_availability(url):
@@ -73,9 +76,6 @@ def reduce_cluster_size(cluster_name, number_of_students, hosted_zone_name,
                             content_type="text/plain", acl="private")
         except Exception as e:
             print(e)
-            print("adding file even though it failed.")
-            #add_file_to_s3(s3_bucket=s3_bucket,body="completed",key=complete_key,
-            #                content_type="text/plain", acl="private")
             print("Unhandled Exception")
 
 def deactivate_event(cluster_name):
@@ -84,12 +84,63 @@ def deactivate_event(cluster_name):
     event_name = cluster_name + "-ValidateEvent"
     response = client.disable_rule(Name=event_name)
     print(response)
+
+def build_stack(cf_client,rebuild_array):
+    # This creates a new Student environment.
+    waiting_to_build = len(rebuild_array)
+    while waiting_to_build > 0:
+        for params in rebuild_array:
+            try: 
+                stack_result = cf_client.create_stack(**params)
+                waiting_to_build = waiting_to_build - 1
+            except Exception as e:
+                print("Exception {}".format(e))
+                print("Previous stack not deleted yet.")
+        if waiting_to_build == 0:
+            break
+        else:
+            print("Sleeping 20 seconds.")
+            time.sleep(20)
             
+def rebuild_stacks(cluster_name, failed_clusters, qss3bucket,
+                            qss3keyprefix, student_template, s3_bucket):
+    rebuild_array = []
+    for failed_student in failed_clusters:
+        print("Attempting to rebuild student {} stack".format(failed_student))
+        cf_client = boto3.client("cloudformation")
+        stack_name = '{}-{}'.format(cluster_name,failed_student)
+        student_cluster_name = cluster_name + '-' + 'student' + str(failed_student)
+        print("Student cluster name is {}".format(student_cluster_name))
+        rebuild_key = os.path.join(student_cluster_name, "rebuild")
+        try:
+            stack = cf_client.describe_stacks(StackName=stack_name)
+            response = cf_client.delete_stack(StackName=stack_name)
+            if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+                new_dict = {"StackName": stack["Stacks"][0]["StackName"] }
+                new_dict["Capabilities"] = stack["Stacks"][0]["Capabilities"]
+                new_dict["Parameters"] = stack["Stacks"][0]["Parameters"]
+                # Template URL can be built based on parameters in it with 
+                # replacing QSS3BucketName and QSS3KeyPrefix and StudentTemplate
+                # Below is already converted
+                new_dict["TemplateURL"] = "https://{}.s3.amazonaws.com/{}templates/{}".format(qss3bucket,
+                        qss3keyprefix, student_template)
+                add_file_to_s3(s3_bucket=s3_bucket,body=json.dumps(new_dict),key=rebuild_key,
+                            content_type="text/json", acl="private")
+                rebuild_array.append(new_dict)
+        except ClientError as e:
+            print("Stack was previously deleted, due to this need to read rebuild file")
+            dest = student_cluster_name + "-rebuild.json"
+            get_from_s3(s3_bucket,student_cluster_name,key="rebuild", dest_file_name=dest)
+            rebuild_array.append(json.load(open("/tmp/{}".format(dest))))
+    build_stack(cf_client,rebuild_array)
+
 def generate_webtemplate(s3_bucket, cluster_name, number_of_students, 
-                        hosted_zone_name, openshift_version):
+                        hosted_zone_name, openshift_version, qss3bucket,
+                            qss3keyprefix, student_template):
     cluster_data = {"cluster_name": cluster_name, 
                     "openshift_version": openshift_version,
                     "clusters_information": [] }
+    failed_clusters = []
     for i in range(number_of_students):
         student_cluster_name = cluster_name + '-' + 'student' + str(i)
         complete_key = os.path.join(student_cluster_name, "completed")
@@ -104,6 +155,9 @@ def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
                         "ssh-url": "ssh.{}.{}".format(student_cluster_name, hosted_zone_name)
             }
             cluster_data["clusters_information"].append(temp_dict)
+        else:
+            # Just need to know which index of the Students that failed to rebuild.
+            failed_clusters.append(i)
     if len(cluster_data["clusters_information"]) > 0:
         print(cluster_data)
         try:
@@ -119,6 +173,9 @@ def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
             print("Exception caught {}".format(e))
     if len(cluster_data["clusters_information"]) == number_of_students:
         deactivate_event(cluster_name)
+    else:
+        rebuild_stacks(cluster_name,failed_clusters, qss3bucket,
+                            qss3keyprefix, student_template, s3_bucket)
 
 def handler(event, context):
     try:
@@ -129,6 +186,9 @@ def handler(event, context):
         openshift_client_base_mirror_url = os.getenv('OpenShiftMirrorURL')
         openshift_version = os.getenv('OpenShiftVersion')
         openshift_client_binary = os.getenv('OpenShiftClientBinary')
+        student_template = os.getenv("StudentTemplate")
+        qss3bucket = os.getenv("QSS3BucketName")
+        qss3keyprefix = os.getenv("QSS3KeyPrefix")
         file_extension = '.tar.gz'
         if sys.platform == 'darwin':
             openshift_install_os = '-mac-'
@@ -142,8 +202,12 @@ def handler(event, context):
                         s3_bucket, openshift_client_mirror_url, 
                         openshift_client_package, openshift_client_binary, 
                         download_path)
+        # We Rebuild stacks inside generate_webtemplate because
+        # we want to ensure the webpage is created before in case
+        # Rebuilding takes more than 15 mins. and the lambda times out.
         generate_webtemplate(s3_bucket, cluster_name, number_of_students, 
-                            hosted_zone_name, openshift_version)
+                            hosted_zone_name, openshift_version, qss3bucket,
+                            qss3keyprefix, student_template)
         print("Complete")
     except Exception:
         logging.error('Unhandled exception', exc_info=True)
