@@ -303,6 +303,9 @@ Resources:
         Fn::GetAtt:
           - "ValidateEvent"
           - "Arn"
+Outputs:
+  WorkshopWebpage:
+    Value: !Sub 'https://${IgnitionBucket}.s3.amazonaws.com/workshop.html'
 #  DeleteBucketContents:
 #    Condition: CreateLambdaZipsBucket
 #    Type: Custom::DeleteBucketContents
