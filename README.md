@@ -78,3 +78,18 @@ export PULL_SECRET=<YOUR PULL SECRET>
 export SSH_KEY=<YOUR PUBLIC SSH_KEY>
 make run_lambda
 ```
+
+## Deleting massive scale stacks
+
+Sometimes the StudentStack lambda can fail to clean up and you require a way to quickly remove the stacks. Here is some sample code to clean this up:
+
+```python
+   import boto3
+   cf_client = boto3.client("cloudformation")
+   cluster_name = "ClusterName input param"
+   to_detel = cf_client.list_stacks(StackStatusFilter=["ROLLBACK_FAILED", "DELETE_FAILED"])
+   for stack in to_detel["StackSummaries"]:
+     if cluster_name in StackName=stack["StackName"]:
+       response = cf_client.delete_stack(StackName=stack["StackName"])
+       response["ResponseMetadata"]["HTTPStatusCode"]
+```
