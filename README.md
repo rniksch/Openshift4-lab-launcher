@@ -89,7 +89,7 @@ Sometimes the StudentStack lambda can fail to clean up and you require a way to 
    cluster_name = "ClusterName input param"
    to_detel = cf_client.list_stacks(StackStatusFilter=["ROLLBACK_FAILED", "DELETE_FAILED"])
    for stack in to_detel["StackSummaries"]:
-     if cluster_name in StackName=stack["StackName"]:
+     if cluster_name in stack["StackName"]:
        response = cf_client.delete_stack(StackName=stack["StackName"])
        response["ResponseMetadata"]["HTTPStatusCode"]
 ```
