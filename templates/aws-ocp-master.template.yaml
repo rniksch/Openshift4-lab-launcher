@@ -82,7 +82,7 @@ Parameters:
     Type: String
   AvailabilityZone:
     Description: The Availability Zone to use for the public subnet in the VPC.
-    Default: us-east-2a #us-west-2a
+    Default: us-west-2a
     Type: AWS::EC2::AvailabilityZone::Name
   PublicSubnetCIDR:
     Description: The CIDR block for the public (DMZ) subnet 1 located in Availability
@@ -125,6 +125,7 @@ Parameters:
     Description: The Secret used to pull the OpenShift containers from the secure registry.
     Default: ""
     Type: String
+    NoEcho: True
   SSHKey:
     Description: The public key to be added to the CoreOS boxes for ssh access.
     Default: ""

@@ -13,11 +13,11 @@ tests:
 #    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
   aws-ocp-master:
     parameters:
-      AvailabilityZone: us-west-2a              # Corresponds to the region
+      AvailabilityZone: "$[taskcat_genaz_1]"    # Corresponds to the region
       RemoteAccessCIDR: "107.145.55.108/32"     # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       NumStudents: "$[taskcat_random-numbers]"
       ClusterName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
-      RhcosAmi: "ami-08e10b201e19fd5e7"         #"ami-0bc59aaa7363b805d"
+      RhcosAmi: "ami-0bc59aaa7363b805d"         #"ami-08e10b201e19fd5e7"
       PullSecret: CHANGE-ME
       SSHKey: CHANGE-ME                         # Can be overwritten in .taskcat_overrides.yml
       HostedZoneName: openshift.awsworkshop.io
@@ -25,6 +25,8 @@ tests:
       QSS3BucketName: "$[taskcat_autobucket]"
       QSS3KeyPrefix: "aws-ocp/"
     template: templates/aws-ocp-master.template.yaml
+    regions:
+      - us-east-2
 # aws-ocp-4-2:
 #   parameters:
 #     RemoteAccessCIDR: "107.145.55.108/32"   # Your `curl -4 ifconfig.io` address
