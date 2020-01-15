@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 def stack_exists(cf_client, stack_name):
     stack_status_codes = ['CREATE_COMPLETE',
+                          'CREATE_IN_PROGRESS',
                           'UPDATE_COMPLETE',
                           'UPDATE_ROLLBACK_COMPLETE',
                           'ROLLBACK_COMPLETE',
