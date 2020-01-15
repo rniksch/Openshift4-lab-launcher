@@ -5,10 +5,14 @@ import datetime
 logger = logging.getLogger(__name__)
 
 def stack_exists(cf_client, stack_name):
-    stack_status_codes = ['CREATE_COMPLETE',
+    stack_status_codes = [
+                        'CREATE_COMPLETE',
                         'UPDATE_COMPLETE',
                         'UPDATE_ROLLBACK_COMPLETE',
-                        'ROLLBACK_COMPLETE', 'CREATE_FAILED']
+                        'ROLLBACK_COMPLETE',
+                        'CREATE_FAILED',
+                        'DELETE_IN_PROGRESS',
+                        'DELETE_FAILED']
     for s in stacks_by_status(cf_client, stack_status_codes):
         if s.get('StackName', '') == stack_name:
             return s
@@ -76,7 +80,6 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
         numStacks = cf_params["NumStacks"]
         del cf_params["NumStacks"]
     stack_state = 'stack_create_complete'
-    waiter = cf_client.get_waiter(stack_state)
     for x in range(numStacks):
         if found:
             cf_params["Parameters"][counter]["ParameterValue"] = str(x)
@@ -95,28 +98,31 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
                 cur_action = "create"
         if cur_action == "create" and stack == None:
             stack_result = cf_client.create_stack(**cf_params)
-            waiter_array.append(cf_params["StackName"])
-            waiter.config.max_attempts = 10
         
         elif cur_action == "delete" and stack:
             print("found and deleting stack")
             stack_result = cf_client.delete_stack(StackName=cf_params["StackName"])
-            waiter_array.append(cf_params["StackName"])
             stack_state = 'stack_delete_complete'
+
+        waiter_array.append({
+            "stack_name": cf_params["StackName"],
+            "stack_state": stack_state})
+
         cf_params["StackName"] = original_name
     
     print(waiter.config)
-    wait_to_complete(cf_client,waiter,waiter_array)
+    wait_to_complete(cf_client, waiter_array)
         
-def wait_to_complete(cf_client,waiter, waiter_array):
+def wait_to_complete(cf_client, waiter_array):
     while( len(waiter_array) > 0 ):
         cur_waiter = waiter_array.pop()
+        waiter = cf_client.get_waiter(cur_water["stack_state"])
         print('...waiting for stack to be ready...')
         try:
-            waiter.wait(StackName=cur_waiter)
+            waiter.wait(StackName=cur_waiter["stack_name"])
         except Exception as e:
             print("Caught exception in Waiter..{}".format(e))
-        stack = stack_exists(cf_client=cf_client, stack_name=cur_waiter)
+        stack = stack_exists(cf_client=cf_client, stack_name=cur_waiter["stack_name"])
 
 def handler(event,context):
     logger.debug(event)
