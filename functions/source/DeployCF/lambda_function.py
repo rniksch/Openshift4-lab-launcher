@@ -66,14 +66,14 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
             counter += 1
         del cf_params["KeyToUpdate"]
     if action == "update":
-        if "NumStacks" in cf_params and "NumStacks" in old_params:
-            print("current is {} and old is {}".format(cf_params["NumStacks"],old_params["NumStacks"]))
-            if cf_params["NumStacks"] > old_params["NumStacks"]:
+        if "NumStacks" in cf_params and "NumStacks" in kwargs["old_params"]:
+            print("current is {} and old is {}".format(cf_params["NumStacks"],kwargs["old_params"]["NumStacks"]))
+            if cf_params["NumStacks"] > kwargs["old_params"]["NumStacks"]:
                 numStacks = cf_params["NumStacks"]
                 del cf_params["NumStacks"]
             else:
                 print("Found old params higher")
-                numStacks = old_params["NumStacks"]
+                numStacks = kwargs["old_params"]["NumStacks"]
                 current_numStacks = cf_params["NumStacks"]
                 del cf_params["NumStacks"]
     elif "NumStacks" in cf_params:    
@@ -87,8 +87,8 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
         cf_params["StackName"] = "{}-{}".format(cf_params["StackName"],x)
         stack = stack_exists(cf_client=cf_client, stack_name=cf_params["StackName"])
         cur_action = action
-        if 'old_params' in vars():
-            print("action is {} and x is {} and old_params Numstacks {}".format(action,x,old_params["NumStacks"]))
+        if 'kwargs["old_params"]' in vars():
+            print("action is {} and x is {} and old_params Numstacks {}".format(action,x,kwargs["old_params"]["NumStacks"]))
         if action == "update":
             print(current_numStacks)
             if current_numStacks and (x+1) > current_numStacks:
@@ -110,13 +110,13 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
 
         cf_params["StackName"] = original_name
     
-    print(waiter.config)
     wait_to_complete(cf_client, waiter_array)
         
 def wait_to_complete(cf_client, waiter_array):
     while( len(waiter_array) > 0 ):
         cur_waiter = waiter_array.pop()
-        waiter = cf_client.get_waiter(cur_water["stack_state"])
+        waiter = cf_client.get_waiter(cur_waiter["stack_state"])
+        print(waiter.config)
         print('...waiting for stack to be ready...')
         try:
             waiter.wait(StackName=cur_waiter["stack_name"])
@@ -133,13 +133,13 @@ def handler(event,context):
         if event['RequestType'] == 'Delete':
             print("Inside delete")
             logger.info(event)
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="delete")
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="delete")
         elif event['RequestType'] == 'Update':
             old_params = parse_properties(event['OldResourceProperties'])
             print("Inside update and old_params is {}".format(old_params))
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="update", old_params=old_params)
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="update", old_params=old_params)
         else:
-            loop_child_stacks(cf_client=cf_client, cf_params=cf_params,action="create")
+            loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="create")
         print("Completed")
     except Exception:
         logging.error('Unhandled exception', exc_info=True)
