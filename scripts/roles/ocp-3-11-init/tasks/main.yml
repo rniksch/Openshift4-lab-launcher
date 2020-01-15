@@ -1,0 +1,8 @@
+---
+# tasks file for ocp-3-11-init
+
+- name: Configure Subscriptions and Updates
+  include: repo_update.yml
+
+- name: Configure Inventory and requirements for OpenShift installer
+  include: ocp_setup.yml

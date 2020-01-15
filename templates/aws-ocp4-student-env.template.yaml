@@ -88,6 +88,7 @@ Parameters:
     AllowedValues:
       - "3.11"
       - "4.2"
+      - "4.3"
     Default: "3.11"
     Type: String
   StudentNum:
@@ -148,7 +149,6 @@ Parameters:
     Default: aws-ocp/
     Type: String
 Resources:
-
   NetworkStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -160,6 +160,7 @@ Resources:
         SubnetId: !Ref SubnetId
         HostedZoneName: !Ref HostedZoneName
 
+  # TODO Update proper Networks to open up
   MasterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

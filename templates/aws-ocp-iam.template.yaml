@@ -10,6 +10,12 @@ Parameters:
   ClusterName:
     Description: ClusterName base for the overall deployment, needed for the ValidateEvent that is created.
     Type: String
+  OCP4:
+    Description: OCP4 or not
+    AllowedValues:
+      - "True"
+      - "False"
+    Type: String
   QSS3BucketName:
     Description: 'S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -29,15 +35,11 @@ Parameters:
       uppercase letters, hyphens (-), dots(.) and forward slash (/).
     Default: aws-ocp/
     Type: String
-  DeleteLambdaZipsBucketContents:
-    Description: Whether to grant the right to delete the lambda containing the zips bucket contents.
-    AllowedValues: [ "True", "False" ]
-    Default: "False"
-    Type: String
 Conditions:
-    CreateDeleteBucketContentsRole: !Equals [!Ref 'DeleteLambdaZipsBucketContents', "True"]
+    OCP4:  !Equals [!Ref 'OCP4', 'True']
 Resources:
   GenerateIgnitionConfigRole:
+    Condition: OCP4
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -59,6 +61,7 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
                   - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
+
   ValidateDeploymentRole:
     Type: AWS::IAM::Role
     Properties:
@@ -179,6 +182,7 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource: !Sub 'arn:aws:s3:::${LambdaZipsBucketName}/${QSS3KeyPrefix}*'
+
   ExecuteCFRole:
     Type: AWS::IAM::Role
     Properties:
@@ -258,6 +262,7 @@ Outputs:
   ValidateDeploymentRoleArn:
     Value: !GetAtt ValidateDeploymentRole.Arn
   GenerateIgnitionConfigRoleArn:
+    Condition: OCP4
     Value: !GetAtt GenerateIgnitionConfigRole.Arn
   CopyZipsRoleArn:
     Value: !GetAtt CopyZipsRole.Arn

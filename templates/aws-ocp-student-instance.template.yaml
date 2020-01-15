@@ -176,7 +176,6 @@ Resources:
             - "ec2.amazonaws.com"
           Action:
           - "sts:AssumeRole"
-
       Policies:
       - PolicyName: !Join ["-", [!Ref InfrastructureName, "master", "policy"]]
         PolicyDocument:
