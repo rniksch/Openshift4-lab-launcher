@@ -10,8 +10,11 @@ Metadata:
           - ClusterName
           - HostedZoneName
           - NumStudents
+          - PullSecretUser
           - PullSecret
           - SSHKey
+          - SubManagerUser
+          - SubManagerPassword
           - RhcosAmi
       - Label:
           default: Security configuration
@@ -33,9 +36,6 @@ Metadata:
         Parameters:
           - QSS3BucketName
           - QSS3KeyPrefix
-          - StudentTemplate
-          - LambdaZipsBucketName
-          - IgnitionBucketName
     ParameterLabels:
       AvailabilityZone:
         default: Availability Zone
@@ -53,22 +53,22 @@ Metadata:
         default: Hosted DNS zone name
       NumStudents:
         default: Number of students
+      PullSecretUser:
+        default: OCP Service Account for 3.11 container repo
       PullSecret:
         default: OCP Pull Secret
       SSHKey:
         default: Public ssh Key
+      SubManagerUser:
+        default: Subscription Manager username
+      SubManagerPassword:
+        default: Subscription Manager password
       RhcosAmi:
         default: "Red Hat Enterprise Linux CoreOS AMI ID"
       Cloud9AutoStopInMin:
         default: Cloud9 automatic stop time in minutes
       Cloud9InstanceType:
         default: Cloud9 instance type
-      LambdaZipsBucketName:
-        default: Lambda zips bucket name
-      IgnitionBucketName:
-        default: Ignition source bucket name
-      StudentTemplate:
-        default: Student CloudFormation template name
       QSS3BucketName:
         default: CloudFormation templates S3 bucket name
       QSS3KeyPrefix:
@@ -102,6 +102,7 @@ Parameters:
     AllowedValues:
       - "3.11"
       - "4.2"
+      - "4.3"
     Default: "4.2"
     Type: String
   ClusterName:
@@ -121,6 +122,10 @@ Parameters:
     Description: The number of student environments to provision for the lab.
     Default: 1
     Type: Number
+  PullSecretUser:
+    Description: The username for pull Secret Service Account. NOTE - not needed for 4.X installs.
+    Default: ""
+    Type: String
   PullSecret:
     Description: The Secret used to pull the OpenShift containers from the secure registry.
     Default: ""
@@ -133,6 +138,15 @@ Parameters:
   RhcosAmi:
     Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
+  SubManagerUser:
+    Description: The username for RHEL subscription. NOTE - not needed for 4.X installs.
+    Default: ""
+    Type: String
+  SubManagerPassword:
+    Description: The password for RHEL subscription. NOTE - not needed for 4.X installs.
+    Default: ""
+    Type: String
+    NoEcho: True
   Cloud9AutoStopInMin:
     Description: The time the Cloud9 instance is automatically stopped after no use.
     Default: 30
@@ -143,24 +157,6 @@ Parameters:
     MinLength: '5'
     MaxLength: '20'
     Default: "t2.micro"
-    Type: String
-  LambdaZipsBucketName:
-    Description: '[OPTIONAL] The name of the S3 bucket where the Lambda zip files should be placed. If you leave this parameter blank, an S3 bucket will be created.'
-    Default: ''
-    Type: String
-  IgnitionBucketName:
-    Description: '[OPTIONAL] The name of the S3 bucket where the ignition script files should be placed. If you leave this parameter blank, an S3 bucket will be created.'
-    Default: ''
-    Type: String
-  StudentTemplate:
-    Description: Template name for the nested student stacks to create. This string can include
-      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
-      or end with a hyphen (-).
-    AllowedPattern: ^[0-9a-zA-Z.]+([0-9a-zA-Z-.]*[0-9a-zA-Z.])*$
-    ConstraintDescription: The bucket name can include numbers, lowercase
-      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
-      (-).
-    Default: aws-ocp-student-env.template.yaml
     Type: String
   QSS3BucketName:
     Description: S3 bucket name for the CloudFormation templates. This string can include
@@ -180,16 +176,27 @@ Parameters:
       uppercase letters, hyphens (-), and forward slash (/).
     Default: aws-ocp/
     Type: String
+
 Conditions:
-    CreateLambdaZipsBucket: !Equals [!Ref 'LambdaZipsBucketName', '']
-    CreateIgnitionBucket: !Equals [!Ref 'IgnitionBucketName', '']
-#   OCP4: !Equals [!Ref OpenShiftVersion, '4.2']
-# Mappings
-#   OpenShiftVersion:
-#     4.2:
-#       OPENSHIFT_MIRROR_URL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
-#       OPENSHIFT_VERSION: "4.2.12"
-#       OPENSHIFT_INSTALL_BINARY: "openshift-install"
+    OCP4: 
+      !Or [ !Equals [!Ref OpenShiftVersion, '4.2'], !Equals [!Ref OpenShiftVersion, '4.3']]
+    OCP3: !Equals [!Ref OpenShiftVersion, '3.11']
+
+Mappings:
+  OpenShiftVersion:
+    # TODO: Can we make this smarter in the lambda to download the version with less inputs
+    "3.11":
+      OpenShiftMirrorURL: ""
+      OpenShiftVersionNum: ""
+      OpenShiftInstallBinary: ""
+      OpenShiftClientBinary: ""
+      StudentTemplate: "aws-ocp3-student-env.template.yaml"
+    "4.2":
+      OpenShiftMirrorURL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+      OpenShiftVersionNum: "4.2.12"
+      OpenShiftInstallBinary: "openshift-install"
+      OpenShiftClientBinary: "openshift-client"
+      StudentTemplate: "aws-ocp4-student-env.template.yaml"
 
 Resources:
   VPCStack:
@@ -204,63 +211,81 @@ Resources:
         VPCCIDR:
           Ref: VPCCIDR
 
+  IgnitionBucket:
+    Condition: OCP4
+    Type: AWS::S3::Bucket
+
+  LambdaZipsBucket:
+    Type: AWS::S3::Bucket
+
   IamStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-iam.template.yaml'
       Parameters:
-        LambdaZipsBucketName: !If [ CreateLambdaZipsBucket, !Ref LambdaZipsBucket, !Ref LambdaZipsBucketName ]
-        IgnitionBucketName: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+        OCP4: !If [ OCP4, "True", "False" ]
+        LambdaZipsBucketName: !Ref LambdaZipsBucket
+        IgnitionBucketName: !If [ OCP4, !Ref IgnitionBucket, "" ]
         ClusterName: !Ref ClusterName
-        DeleteLambdaZipsBucketContents: !If [ CreateLambdaZipsBucket, "True", "False" ]
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
-
-  IgnitionBucket:
-    #Condition: OCP4
-    Type: AWS::S3::Bucket
-    Condition: CreateIgnitionBucket
-
-  LambdaZipsBucket:
-    Type: AWS::S3::Bucket
-    Condition: CreateLambdaZipsBucket
 
   LambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-lambda.template.yaml'
       Parameters:
-        LambdaZipsBucketName: !If [ CreateLambdaZipsBucket, !Ref LambdaZipsBucket, !Ref LambdaZipsBucketName ]
+        OCP4: !If [ OCP4, "True", "False" ]
+        LambdaZipsBucketName: !Ref LambdaZipsBucket
         CopyZipsRoleArn: !GetAtt IamStack.Outputs.CopyZipsRoleArn
         ExecuteCFRoleArn: !GetAtt IamStack.Outputs.ExecuteCFRoleArn
         ValidateDeploymentRoleArn: !GetAtt IamStack.Outputs.ValidateDeploymentRoleArn
-        GenerateIgnitionConfigRoleArn: !GetAtt IamStack.Outputs.GenerateIgnitionConfigRoleArn
-        AuthBucket: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+        GenerateIgnitionConfigRoleArn: !If [ OCP4, !GetAtt IamStack.Outputs.GenerateIgnitionConfigRoleArn, "" ]
+        AuthBucket: !If [ OCP4, !Ref IgnitionBucket, "" ]
         ClusterName: !Ref ClusterName
         NumStudents: !Ref NumStudents
         HostedZoneName: !Ref HostedZoneName
-        OpenShiftMirrorURL: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
-        OpenShiftVersion : "4.2.12"
-        OpenShiftClientBinary: "openshift-client"
-        StudentTemplate: !Ref StudentTemplate
+        OpenShiftMirrorURL: !FindInMap
+          - OpenShiftVersion
+          - !Ref OpenShiftVersion
+          -  OpenShiftMirrorURL
+        OpenShiftVersion: !FindInMap
+          - OpenShiftVersion
+          - !Ref OpenShiftVersion
+          -  OpenShiftVersionNum
+        OpenShiftClientBinary: !FindInMap
+          - OpenShiftVersion
+          - !Ref OpenShiftVersion
+          - OpenShiftClientBinary 
+        StudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
 
   IgnitionExecute:
-    #Condition: OCP4
+    Condition: OCP4
     Type: Custom::LambdaDeployIgnition
     Properties:
       ServiceToken: !GetAtt LambdaStack.Outputs.DeployIgnitionLambdaArn
-      IgnitionBucket: !If [CreateIgnitionBucket, !Ref IgnitionBucket, !Ref IgnitionBucketName ]
+      IgnitionBucket: !If [OCP4, !Ref IgnitionBucket, "" ]
       PullSecret: !Ref PullSecret
       SSHKey: !Ref SSHKey
       ClusterName: !Ref ClusterName
       NumStudents: !Ref NumStudents
-      OpenShiftMirrorURL: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
-      OpenShiftVersion : "4.2.12"
-      OpenShiftInstallBinary: "openshift-install"
+      OpenShiftMirrorURL: !FindInMap
+        - OpenShiftVersion
+        - !Ref OpenShiftVersion
+        -  OpenShiftMirrorURL
+      OpenShiftVersion: !FindInMap
+        - OpenShiftVersion
+        - !Ref OpenShiftVersion
+        -  OpenShiftVersionNum
+      OpenShiftInstallBinary: !FindInMap
+        - OpenShiftVersion
+        - !Ref OpenShiftVersion
+        -  OpenShiftInstallBinary
 
-  StudentStacks:
+  StudentStacksOCP4:
+    Condition: OCP4
     DependsOn: IgnitionExecute
     Type: Custom::LambdaDeployCF
     Properties:
@@ -268,7 +293,10 @@ Resources:
       StackName: !Ref ClusterName
       KeyToUpdate: "StudentNum"
       StudentNum: !Ref NumStudents
-      TemplateURL: !Sub "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${StudentTemplate}"
+      TemplateURL: 
+        Fn::Sub:
+          - "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${CurStudentTemplate}"
+          - CurStudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
       VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
       SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
       VPCCIDR: !Ref VPCCIDR
@@ -279,13 +307,46 @@ Resources:
       ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
       RhcosAmi: !Ref RhcosAmi
-      IgnitionLocation: !If [CreateIgnitionBucket, !Sub "s3://${IgnitionBucket}", !Sub "s3://${IgnitionBucketName}" ]
+      IgnitionLocation: !If [OCP4, !Sub "s3://${IgnitionBucket}", "" ]
       Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
       Cloud9InstanceType: !Ref Cloud9InstanceType
       QSS3BucketName: !Ref QSS3BucketName
       QSS3KeyPrefix: !Ref QSS3KeyPrefix
 
+  StudentStacksOCP3:
+    Condition: OCP3
+    Type: Custom::LambdaDeployCF
+    Properties:
+      ServiceToken: !GetAtt LambdaStack.Outputs.DeployCFLambdaArn
+      StackName: !Ref ClusterName
+      KeyToUpdate: "StudentNum"
+      StudentNum: !Ref NumStudents
+      TemplateURL: 
+        Fn::Sub:
+          - "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${CurStudentTemplate}"
+          - CurStudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
+      VpcId: !GetAtt 'VPCStack.Outputs.VPCID'
+      SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
+      RemoteAccessCIDR: !Ref RemoteAccessCIDR
+      NumStacks: !Ref NumStudents
+      ClusterName: !Ref ClusterName
+      HostedZoneName: !Ref HostedZoneName
+      PullSecretUser: !Ref PullSecretUser
+      PullSecret: !Ref PullSecret 
+      SSHKey: !Ref SSHKey 
+      SubManagerUser: !Ref SubManagerUser 
+      SubManagerPassword: !Ref SubManagerPassword 
+      QSS3BucketName: !Ref QSS3BucketName
+      QSS3KeyPrefix: !Ref QSS3KeyPrefix
+    #  HostedZoneName: !Ref HostedZoneName
+    #  RhcosAmi: !Ref RhcosAmi
+    #  IgnitionLocation: !If [OCP4, !Sub "s3://${IgnitionBucket}", "" ]
+    #  Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
+    #  Cloud9InstanceType: !Ref Cloud9InstanceType
+
+
   ValidateEvent:
+    Condition: OCP4
     Type: AWS::Events::Rule
     Properties:
       Name: !Sub ${ClusterName}-ValidateEvent
@@ -295,6 +356,7 @@ Resources:
           Id: !Sub ${ClusterName}-ValidateDeploymentLambda
 
   LambdaInvokePermission:
+    Condition: OCP4
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn

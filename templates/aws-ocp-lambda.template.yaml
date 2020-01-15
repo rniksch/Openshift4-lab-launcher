@@ -13,6 +13,12 @@ Parameters:
   ValidateDeploymentRoleArn:
     Description: Lambda to Validate OCP Deployments Arn
     Type: String
+  OCP4:
+    Description: OCP4 or not
+    AllowedValues:
+      - "True"
+      - "False"
+    Type: String
   GenerateIgnitionConfigRoleArn:
     Description: OpenShift installer Executor (GenerateIngitionConfigs) Arn
     Type: String
@@ -42,7 +48,7 @@ Parameters:
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
     AllowedPattern: ^[0-9a-zA-Z.]+([0-9a-zA-Z-.]*[0-9a-zA-Z.])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+    ConstraintDescription: Student Template name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
     Default: aws-ocp-student-env.template.yaml
@@ -66,6 +72,10 @@ Parameters:
       can include numbers, lowercase letters, uppercase letters, hyphens (-), dots(.) and
       forward slash (/).
     Type: String
+
+Conditions:
+  OCP4:  !Equals [!Ref 'OCP4', 'True']
+
 Resources:
   CopyZipsFunction:
     Type: AWS::Lambda::Function
@@ -120,6 +130,7 @@ Resources:
       - functions/packages/helperlayer/lambda.zip
       - functions/packages/scriptlayer/lambda.zip
       - functions/packages/PostInstallTasks/lambda.zip
+
   HelperLayer:
     DependsOn: CopyZips
     Type: AWS::Lambda::LayerVersion
@@ -127,6 +138,7 @@ Resources:
       Content:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/helperlayer/lambda.zip'
+
   ScriptLayer:
     DependsOn: CopyZips
     Type: AWS::Lambda::LayerVersion
@@ -134,7 +146,9 @@ Resources:
       Content:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/scriptlayer/lambda.zip'
+
   DeployIgnitionLambda:
+    Condition: OCP4
     DependsOn: CopyZips
     Type: AWS::Lambda::Function
     Properties:
@@ -147,6 +161,7 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/GenerateIgnitionFiles/lambda.zip'
+
   DeployCFLambda:
     DependsOn: CopyZips
     Type: AWS::Lambda::Function
@@ -160,6 +175,7 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/DeployCF/lambda.zip'
+
   ValidateDeploymentLambda:
     DependsOn: CopyZips
     Type: AWS::Lambda::Function
@@ -189,6 +205,7 @@ Resources:
           
 Outputs:
   DeployIgnitionLambdaArn:
+    Condition: OCP4
     Value: !GetAtt DeployIgnitionLambda.Arn
   DeployCFLambdaArn:
     Value: !GetAtt DeployCFLambda.Arn

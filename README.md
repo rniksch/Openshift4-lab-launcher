@@ -84,12 +84,20 @@ make run_lambda
 Sometimes the StudentStack lambda can fail to clean up and you require a way to quickly remove the stacks. Here is some sample code to clean this up:
 
 ```python
-   import boto3
-   cf_client = boto3.client("cloudformation")
-   cluster_name = "ClusterName input param"
-   to_detel = cf_client.list_stacks(StackStatusFilter=["ROLLBACK_FAILED", "DELETE_FAILED"])
-   for stack in to_detel["StackSummaries"]:
-     if cluster_name in stack["StackName"]:
-       response = cf_client.delete_stack(StackName=stack["StackName"])
-       response["ResponseMetadata"]["HTTPStatusCode"]
+    import boto3
+    cf_client = boto3.client("cloudformation")
+    cluster_name = "ClusterName input param"
+    to_detel = cf_client.list_stacks(StackStatusFilter=["ROLLBACK_FAILED", "DELETE_FAILED"])
+    for stack in to_detel["StackSummaries"]:
+      if cluster_name in stack["StackName"]:
+        response = cf_client.delete_stack(StackName=stack["StackName"])
+        response["ResponseMetadata"]["HTTPStatusCode"]
 ```
+
+## OCP 3.x
+
+## OCP 4.x
+
+### OCP 4.1 Hardware Requirements
+
+4 CPU, 8GB RAM, 35GB storage

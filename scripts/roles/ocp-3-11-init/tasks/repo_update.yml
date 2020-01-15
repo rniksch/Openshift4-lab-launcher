@@ -1,0 +1,44 @@
+---
+# tasks file for ocp-3-11-init subscriptions and updates
+
+- name: Manage Red Hat subscription
+  redhat_subscription:
+    username: "{{ ocp_3_11_init_rhel_subscription_username }}"
+    password: "{{ ocp_3_11_init_rhel_subscription_password }}"
+    pool: "{{ ocp_3_11_init_rhel_pool_regex }}"
+    state: "present"
+  register: subscrition_result
+  tags:
+    - rhsm
+    - rhsm_register
+  # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1715958
+  # A regression in Satellite added a delay to the registration to happen.
+  # To counter this problem we retry 5 times with a delay of 10 seconds between
+  # retries.
+  retries: 5
+  delay: 10
+  until: not subscrition_result.failed
+
+- name: Manage Red Hat repos
+  rhsm_repository:
+    name: "{{ ocp_3_11_init_enabled_repos }}"
+    purge: yes
+
+- name: Change to host python for Yum
+  set_fact:
+    ansible_python_interpreter: /usr/bin/python
+
+- name: Upgrade all packages, excluding kernel related packages
+  yum:
+    name: '*'
+    state: latest
+    exclude: kernel*
+
+- name: Install Openshift and Ansible packages
+  yum: 
+    name: "{{ ocp_3_11_init_packages }}"
+    state: present
+
+- name: Change back to virtualenv
+  set_fact:
+    ansible_python_interpreter: "{{ ocp_3_11_venv_python }}"
