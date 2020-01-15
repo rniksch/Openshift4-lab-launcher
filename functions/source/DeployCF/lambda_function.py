@@ -5,14 +5,13 @@ import datetime
 logger = logging.getLogger(__name__)
 
 def stack_exists(cf_client, stack_name):
-    stack_status_codes = [
-                        'CREATE_COMPLETE',
-                        'UPDATE_COMPLETE',
-                        'UPDATE_ROLLBACK_COMPLETE',
-                        'ROLLBACK_COMPLETE',
-                        'CREATE_FAILED',
-                        'DELETE_IN_PROGRESS',
-                        'DELETE_FAILED']
+    stack_status_codes = ['CREATE_COMPLETE',
+                          'UPDATE_COMPLETE',
+                          'UPDATE_ROLLBACK_COMPLETE',
+                          'ROLLBACK_COMPLETE',
+                          'CREATE_FAILED',
+                          'DELETE_IN_PROGRESS',
+                          'DELETE_FAILED']
     for s in stacks_by_status(cf_client, stack_status_codes):
         if s.get('StackName', '') == stack_name:
             return s
