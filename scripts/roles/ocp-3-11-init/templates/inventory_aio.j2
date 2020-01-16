@@ -107,7 +107,7 @@ osm_cluster_network_cidr=10.{{ ocp_3_11_init_student_number }}.0.0/16
 openshift_portal_net=172.{{ ocp_3_11_init_student_number }}.0.0/16
 
 os_sdn_network_plugin_name='redhat/openshift-ovs-networkpolicy'
-
+openshift_node_groups=[{'name': 'configmap1', 'labels': ['node-role.kubernetes.io/master=true', 'node-role.kubernetes.io/infra=true', 'node-role.kubernetes.io/compute=true'], 'edits': [{ 'key': 'nodeIP','value': '{{ hostvars[inventory_hostname]["ansible_default_ipv4"]["address"] }}'}]}]
 ###########################################################################
 ### OpenShift Authentication Vars
 ###########################################################################
@@ -132,7 +132,7 @@ openshift_master_htpasswd_users={'ocpadmin':'$apr1$ZuJlQr.Y$6abuePAhKG0iY8QDNWoq
 # https://github.com/openshift/openshift-docs/blob/master/install_config/monitoring/configuring-openshift-cluster-monitoring.adoc
 # https://github.com/openshift/openshift-docs/tree/enterprise-3.11/install_config/monitoring
 
-openshift_cluster_monitoring_operator_install=true
+openshift_cluster_monitoring_operator_install=false
 #openshift_prometheus_node_selector={"node-role.kubernetes.io/infra":"true"}
 
 # NOTE: Setup for lab environment
@@ -298,7 +298,7 @@ nodes
 [nodes]
 ## All-In-One with CRI-O
 #ocp.example.com openshift_node_group_name='node-config-all-in-one-crio' openshift_node_problem_detector_install=true
-{{ ocp_3_11_init_student_dns }} openshift_node_group_name='node-config-all-in-one' openshift_node_problem_detector_install=true
+{{ ocp_3_11_init_student_dns }} openshift_node_group_name='configmap1' openshift_node_problem_detector_install=true
 
 #
 # END OF FILE
