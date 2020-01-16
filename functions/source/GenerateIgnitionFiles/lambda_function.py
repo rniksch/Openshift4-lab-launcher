@@ -11,6 +11,7 @@ import hashlib
 import sys
 import cfnresponse
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 def install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path):
     sha256sum_file = 'sha256sum.txt'
@@ -132,13 +133,13 @@ def run_process(cmd):
         log.info(proc.stdout)
         log.info(proc.stderr)
     except subprocess.CalledProcessError as e:
-        print("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
+        log.error("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
         log.error(e.cmd)
         log.error(e.stderr)
         log.error(e.stdout)
         raise
     except OSError as e:
-        print("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
+        log.error("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
         log.error("OSError: {}".format(e.errno))
         log.error(e.strerror)
         log.error(e.filename)
@@ -169,13 +170,13 @@ def handler(event, context):
     try:
         cf_client = boto3.client('cloudformation')
         if event['RequestType'] == 'Delete':
-            print("Delete request found, initiating..")
+            log.info("Delete request found, initiating..")
             delete_contents_s3(s3_bucket=event['ResourceProperties']['IgnitionBucket'])
         elif event['RequestType'] == 'Update':
-            print("Update sent, however, this is unsupported at this time.")
+            log.info("Update sent, however, this is unsupported at this time.")
             pass
         else:
-            print("Delete and Update not detected, proceeding with Create")
+            log.info("Delete and Update not detected, proceeding with Create")
             s3_bucket = event['ResourceProperties']['IgnitionBucket']
             pull_secret = event['ResourceProperties'].get('PullSecret', os.getenv('PULL_SECRET'))
             ssh_key = event['ResourceProperties'].get('SSHKey', os.environ.get('SSH_KEY'))
@@ -202,7 +203,7 @@ def handler(event, context):
                                         student_cluster_name, ssh_key, pull_secret,
                                         hosted_zone_name, student_num=i)
                 upload_to_s3(download_path, student_cluster_name, s3_bucket)
-        print("Complete")
+        log.info("Complete")
     except Exception:
         logging.error('Unhandled exception', exc_info=True)
         status = cfnresponse.FAILED
