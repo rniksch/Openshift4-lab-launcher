@@ -1,8 +1,8 @@
 project:
-  name: t3-dip-435
+  name: aws-ocp
   owner: quickstart-eng@amazon.com
   regions:
-    - us-east-1
+    - us-west-2
 
 tests:
 #  aws-ignition-file-lambda:
@@ -56,15 +56,15 @@ tests:
       RemoteAccessCIDR: "107.145.55.108/32"     # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
       NumStudents: "$[taskcat_random-numbers]"
       ClusterName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
-      RhcosAmi: "ami-0bc59aaa7363b805d"         #"ami-08e10b201e19fd5e7"
+      RhcosAmi: "ami-08e10b201e19fd5e7"         # "ami-0bc59aaa7363b805d"
       PullSecret: CHANGE-ME
       SSHKey: CHANGE-ME                         # Can be overwritten in .taskcat_overrides.yml
       HostedZoneName: openshift.awsworkshop.io
       QSS3BucketName: "$[taskcat_autobucket]"
-      QSS3KeyPrefix: "t3-dip-435/"
+      QSS3KeyPrefix: "aws-ocp/"
     template: templates/aws-ocp-master.template.yaml
     regions:
-      - us-east-1
+      - us-west-2
 #  aws-network:
 #    parameters:
 #      ClusterName: "trace3-test3"
