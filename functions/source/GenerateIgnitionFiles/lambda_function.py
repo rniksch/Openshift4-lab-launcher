@@ -97,17 +97,21 @@ def generate_ignition_files(openshift_install_binary, download_path, student_clu
     openshift_install_config['metadata']['name'] = student_cluster_name
     openshift_install_config['sshKey'] = ssh_key
     openshift_install_config['pullSecret'] = pull_secret
-    
+    openshift_install_config['baseDomain'] = hosted_zone_name
+
     # Network updates
     orig_cluster_network = openshift_install_config['networking']['clusterNetwork'][0]['cidr']
     # We need to update the cluster networks 10.30.0.0/16 to 10.31.0.0/16 or +1 in second octect for each student
     openshift_install_config['networking']['clusterNetwork'][0]['cidr'] = update_cidr(student_num,1,orig_cluster_network,1)
     orig_service_network = openshift_install_config['networking']['serviceNetwork'][0]
     openshift_install_config['networking']['serviceNetwork'][0] = update_cidr(student_num,1,orig_service_network,1)
-    
+
     cluster_install_config_file = os.path.join(assets_directory, install_config_file)
     # Using this to get around the ssh-key multiline issue in yaml
-    yaml.dump(openshift_install_config, open(cluster_install_config_file, 'w'), explicit_start=True, default_style='\"', width=4096)
+    yaml.dump(openshift_install_config,
+              open(cluster_install_config_file, 'w'),
+              explicit_start=True, default_style='\"',
+              width=4096)
     log.info("Generating manifests for {}...".format(student_cluster_name))
     cmd = download_path + openshift_install_binary + " create manifests --dir {}".format(assets_directory)
     run_process(cmd)
@@ -138,7 +142,7 @@ def run_process(cmd):
         log.error("OSError: {}".format(e.errno))
         log.error(e.strerror)
         log.error(e.filename)
-        raise 
+        raise
 
 def upload_to_s3(download_path, student_cluster_name, s3_bucket):
     client = boto3.client('s3')
@@ -180,6 +184,7 @@ def handler(event, context):
             openshift_client_base_mirror_url = event['ResourceProperties']['OpenShiftMirrorURL']
             openshift_version = event['ResourceProperties']['OpenShiftVersion']
             openshift_install_binary = event['ResourceProperties']['OpenShiftInstallBinary']
+            hosted_zone_name = event['ResourceProperties']['HostedZoneName']
             file_extension = '.tar.gz'
             if sys.platform == 'darwin':
                 openshift_install_os = '-mac-'
@@ -193,7 +198,9 @@ def handler(event, context):
             install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path)
             for i in range(number_of_students):
                 student_cluster_name = cluster_name + '-' + 'student' + str(i)
-                generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret, student_num=i)
+                generate_ignition_files(openshift_install_binary, download_path,
+                                        student_cluster_name, ssh_key, pull_secret,
+                                        hosted_zone_name, student_num=i)
                 upload_to_s3(download_path, student_cluster_name, s3_bucket)
         print("Complete")
     except Exception:

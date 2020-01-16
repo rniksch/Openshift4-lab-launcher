@@ -109,7 +109,7 @@ Parameters:
     Description: A short, representative cluster name to use for host names and other identifying names. This
       will be combined with the studentNumber to create the full cluster name
     AllowedPattern: ^([a-z][a-z0-9\-]{0,26})$
-    ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 12 
+    ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 12
       characters and all lowercase.
     MaxLength: 12
     MinLength: 1
@@ -178,7 +178,7 @@ Parameters:
     Type: String
 
 Conditions:
-    OCP4: 
+    OCP4:
       !Or [ !Equals [!Ref OpenShiftVersion, '4.2'], !Equals [!Ref OpenShiftVersion, '4.3']]
     OCP3: !Equals [!Ref OpenShiftVersion, '3.11']
 
@@ -256,7 +256,7 @@ Resources:
         OpenShiftClientBinary: !FindInMap
           - OpenShiftVersion
           - !Ref OpenShiftVersion
-          - OpenShiftClientBinary 
+          - OpenShiftClientBinary
         StudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -271,6 +271,7 @@ Resources:
       SSHKey: !Ref SSHKey
       ClusterName: !Ref ClusterName
       NumStudents: !Ref NumStudents
+      HostedZoneName: !Ref HostedZoneName
       OpenShiftMirrorURL: !FindInMap
         - OpenShiftVersion
         - !Ref OpenShiftVersion
@@ -293,7 +294,7 @@ Resources:
       StackName: !Ref ClusterName
       KeyToUpdate: "StudentNum"
       StudentNum: !Ref NumStudents
-      TemplateURL: 
+      TemplateURL:
         Fn::Sub:
           - "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${CurStudentTemplate}"
           - CurStudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
@@ -321,7 +322,7 @@ Resources:
       StackName: !Ref ClusterName
       KeyToUpdate: "StudentNum"
       StudentNum: !Ref NumStudents
-      TemplateURL: 
+      TemplateURL:
         Fn::Sub:
           - "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${CurStudentTemplate}"
           - CurStudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
@@ -332,10 +333,10 @@ Resources:
       ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
       PullSecretUser: !Ref PullSecretUser
-      PullSecret: !Ref PullSecret 
-      SSHKey: !Ref SSHKey 
-      SubManagerUser: !Ref SubManagerUser 
-      SubManagerPassword: !Ref SubManagerPassword 
+      PullSecret: !Ref PullSecret
+      SSHKey: !Ref SSHKey
+      SubManagerUser: !Ref SubManagerUser
+      SubManagerPassword: !Ref SubManagerPassword
       QSS3BucketName: !Ref QSS3BucketName
       QSS3KeyPrefix: !Ref QSS3KeyPrefix
     #  HostedZoneName: !Ref HostedZoneName
