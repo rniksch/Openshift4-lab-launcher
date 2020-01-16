@@ -85,7 +85,7 @@ def update_cidr(student_num,multiplicitive,cidr,octect):
     ip[octect] = int(ip[octect]) + (student_num*multiplicitive)
     return '.'.join(map(str, ip))
 
-def generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret, student_num):
+def generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret, hosted_zone_name, student_num):
     assets_directory = download_path + student_cluster_name
     install_config_file = 'install-config.yaml'
     log.info("Generating ignition files for {}...".format(student_cluster_name))
