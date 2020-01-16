@@ -252,6 +252,7 @@ Resources:
                   - iam:CreateInstanceProfile
                   - iam:DeleteInstanceProfile
                   - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
                   - lambda:CreateFunction
                   - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
