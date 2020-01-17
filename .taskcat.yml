@@ -2,7 +2,7 @@ project:
   name: aws-ocp
   owner: quickstart-eng@amazon.com
   regions:
-    - us-east-1
+    - us-west-2
 
 tests:
 #  aws-ignition-file-lambda:
@@ -71,7 +71,6 @@ tests:
 #      InfrastructureName: "trace3-test3"
 #      VpcId: "vpc-025937009759a4fb5"
 #      PrivateSubnetId: "subnet-0bfb13ce017f5beb9"
-      #HostedZoneId: Z3S2KL7IIXHCNP
 #      HostedZoneName: openshift.awsworkshop.io
 #    template: templates/aws-ocp-student-network.template.yaml
 #  aws-ocp-42-bootstrap:

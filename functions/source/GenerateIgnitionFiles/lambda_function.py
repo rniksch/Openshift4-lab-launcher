@@ -11,6 +11,7 @@ import hashlib
 import sys
 import cfnresponse
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 def install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path):
     sha256sum_file = 'sha256sum.txt'
@@ -88,7 +89,6 @@ def update_cidr(student_num,multiplicitive,cidr,octect):
 def generate_ignition_files(openshift_install_binary, download_path, student_cluster_name, ssh_key, pull_secret, hosted_zone_name, student_num):
     assets_directory = download_path + student_cluster_name
     install_config_file = 'install-config.yaml'
-    log.info("Generating ignition files for {}...".format(student_cluster_name))
     log.debug("Creating OpenShift assets directory for {}...".format(student_cluster_name))
     if not os.path.exists(assets_directory):
         os.mkdir(assets_directory)
@@ -120,7 +120,7 @@ def generate_ignition_files(openshift_install_binary, download_path, student_clu
     #manifest = yaml.safe_load(open(cluster_scheduler_manifest))
     #manifest['spec']['mastersSchedulable'] = False
     #yaml.dump(manifest, open(cluster_scheduler_manifest, 'w'))
-    log.info("Generate ignition files for {}...".format(student_cluster_name))
+    log.info("Generating ignition files for {}...".format(student_cluster_name))
     cmd = download_path + openshift_install_binary + " create ignition-configs --dir {}".format(assets_directory)
     run_process(cmd)
 
@@ -128,17 +128,17 @@ def run_process(cmd):
     try:
         proc = subprocess.run([cmd], capture_output=True, shell=True)
         proc.check_returncode()
-        log.info(proc.returncode)
-        log.info(proc.stdout)
-        log.info(proc.stderr)
+        log.debug(proc.returncode)
+        log.debug(proc.stdout)
+        log.debug(proc.stderr)
     except subprocess.CalledProcessError as e:
-        print("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
+        log.error("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
         log.error(e.cmd)
         log.error(e.stderr)
         log.error(e.stdout)
         raise
     except OSError as e:
-        print("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
+        log.error("Error Detected on cmd {} with error {}".format(e.cmd, e.stderr))
         log.error("OSError: {}".format(e.errno))
         log.error(e.strerror)
         log.error(e.filename)
@@ -169,13 +169,13 @@ def handler(event, context):
     try:
         cf_client = boto3.client('cloudformation')
         if event['RequestType'] == 'Delete':
-            print("Delete request found, initiating..")
+            log.info("Delete request found, initiating..")
             delete_contents_s3(s3_bucket=event['ResourceProperties']['IgnitionBucket'])
         elif event['RequestType'] == 'Update':
-            print("Update sent, however, this is unsupported at this time.")
+            log.info("Update sent, however, this is unsupported at this time.")
             pass
         else:
-            print("Delete and Update not detected, proceeding with Create")
+            log.info("Delete and Update not detected, proceeding with Create")
             s3_bucket = event['ResourceProperties']['IgnitionBucket']
             pull_secret = event['ResourceProperties'].get('PullSecret', os.getenv('PULL_SECRET'))
             ssh_key = event['ResourceProperties'].get('SSHKey', os.environ.get('SSH_KEY'))
@@ -194,7 +194,7 @@ def handler(event, context):
             openshift_client_mirror_url = openshift_client_base_mirror_url + openshift_version + "/"
             download_path = '/tmp/'
 
-            log.info("Cluster name: " + event['ResourceProperties']['ClusterName'])
+            log.info("Generating OCP installation files for cluster " + event['ResourceProperties']['ClusterName'])
             install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path)
             for i in range(number_of_students):
                 student_cluster_name = cluster_name + '-' + 'student' + str(i)
@@ -202,7 +202,7 @@ def handler(event, context):
                                         student_cluster_name, ssh_key, pull_secret,
                                         hosted_zone_name, student_num=i)
                 upload_to_s3(download_path, student_cluster_name, s3_bucket)
-        print("Complete")
+        log.info("Complete")
     except Exception:
         logging.error('Unhandled exception', exc_info=True)
         status = cfnresponse.FAILED
