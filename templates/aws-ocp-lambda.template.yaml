@@ -7,20 +7,8 @@ Parameters:
   CopyZipsRoleArn:
     Description: CloudFormation CopyZips Exception Arn
     Type: String
-  ExecuteCFRoleArn:
-    Description: CloudFormation Execution Arn
-    Type: String
-  ValidateDeploymentRoleArn:
-    Description: Lambda to Validate OCP Deployments Arn
-    Type: String
-  OCP4:
-    Description: OCP4 or not
-    AllowedValues:
-      - "True"
-      - "False"
-    Type: String
-  GenerateIgnitionConfigRoleArn:
-    Description: OpenShift installer Executor (GenerateIngitionConfigs) Arn
+  StackDirectorRoleArn:
+    Description: Lambda to deploy all of the OCP stacks
     Type: String
   AuthBucket:
     Description: S3 bucket and or folder location in which auth folder exists
@@ -72,9 +60,15 @@ Parameters:
       can include numbers, lowercase letters, uppercase letters, hyphens (-), dots(.) and
       forward slash (/).
     Type: String
-
-Conditions:
-  OCP4:  !Equals [!Ref 'OCP4', 'True']
+  LogLevel:
+    Description: Lambda log level
+    Default: "DEBUG"
+    AllowedValues:
+      - "INFO"
+      - "DEBUG"
+      - "ERROR"
+      - "WARNING"
+    Type: String
 
 Resources:
   CopyZipsFunction:
@@ -125,70 +119,21 @@ Resources:
       SourceBucket: !Ref 'QSS3BucketName'
       Prefix: !Ref 'QSS3KeyPrefix'
       Objects:
-      - functions/packages/DeployCF/lambda.zip
-      - functions/packages/GenerateIgnitionFiles/lambda.zip
-      - functions/packages/helperlayer/lambda.zip
-      - functions/packages/scriptlayer/lambda.zip
-      - functions/packages/PostInstallTasks/lambda.zip
+      - functions/packages/StackDirector/lambda.zip
 
-  HelperLayer:
-    DependsOn: CopyZips
-    Type: AWS::Lambda::LayerVersion
-    Properties:
-      Content:
-        S3Bucket: !Ref LambdaZipsBucketName
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/helperlayer/lambda.zip'
-
-  ScriptLayer:
-    DependsOn: CopyZips
-    Type: AWS::Lambda::LayerVersion
-    Properties:
-      Content:
-        S3Bucket: !Ref LambdaZipsBucketName
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/scriptlayer/lambda.zip'
-
-  DeployIgnitionLambda:
-    Condition: OCP4
-    DependsOn: CopyZips
-    Type: AWS::Lambda::Function
-    Properties:
-      Description: Generates Ignition Files
-      Handler: lambda_function.handler
-      MemorySize: 512
-      Runtime: python3.7
-      Role: !Ref GenerateIgnitionConfigRoleArn
-      Timeout: 900
-      Code:
-        S3Bucket: !Ref LambdaZipsBucketName
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/GenerateIgnitionFiles/lambda.zip'
-
-  DeployCFLambda:
-    DependsOn: CopyZips
-    Type: AWS::Lambda::Function
-    Properties:
-      Description: Deploys CloudFormation Stacks 
-      Handler: lambda_function.handler
-      MemorySize: 128
-      Runtime: python3.7
-      Role: !Ref ExecuteCFRoleArn
-      Timeout: 900
-      Code:
-        S3Bucket: !Ref LambdaZipsBucketName
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/DeployCF/lambda.zip'
-
-  ValidateDeploymentLambda:
+  StackDirectorLambda:
     DependsOn: CopyZips
     Type: AWS::Lambda::Function
     Properties:
       Description: A Cron Lambda to check if the student environments are ready.
       Handler: lambda_handler.handler
-      MemorySize: 256
-      Role: !Ref ValidateDeploymentRoleArn
+      MemorySize: 512
+      Role: !Ref StackDirectorRoleArn
       Runtime: python3.7
       Timeout: 900
-      Layers: [!Ref HelperLayer, !Ref ScriptLayer]
       Environment:
         Variables:
+          LogLevel: !Ref LogLevel
           AuthBucket: !Ref AuthBucket
           ClusterName: !Ref ClusterName
           NumStudents: !Ref NumStudents
@@ -201,15 +146,8 @@ Resources:
           QSS3KeyPrefix: !Ref QSS3KeyPrefix
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/PostInstallTasks/lambda.zip'
-          
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/StackDirector/lambda.zip'
+
 Outputs:
-  DeployIgnitionLambdaArn:
-    Condition: OCP4
-    Value: !GetAtt DeployIgnitionLambda.Arn
-  DeployCFLambdaArn:
-    Value: !GetAtt DeployCFLambda.Arn
-  ValidateDeploymentLambdaArn:
-    Value: !GetAtt ValidateDeploymentLambda.Arn
-  ValidateDeploymentLambda:
-    Value: !Ref ValidateDeploymentLambda
+  StackDirectorLambdaArn:
+    Value: !GetAtt StackDirectorLambda.Arn

@@ -38,8 +38,7 @@ Parameters:
 Conditions:
     OCP4:  !Equals [!Ref 'OCP4', 'True']
 Resources:
-  GenerateIgnitionConfigRole:
-    Condition: OCP4
+  StackDirectorRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -52,38 +51,12 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: ModifyIgnitionContent
+        - PolicyName: stackdirector
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action: s3:*
-                Resource:
-                  - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
-                  - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
-
-  ValidateDeploymentRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: validatedeployments
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:PutObjectAcl
                 Resource:
                   - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
                   - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
@@ -120,6 +93,7 @@ Resources:
                   - lambda:DeleteFunction
                   - lambda:InvokeFunction
                   - cloudformation:Create*
+                  - cloudformation:ListStacks*
                   - cloudformation:Delete*
                   - cloudformation:Describe*
                   - ec2:DescribeVpcs
@@ -149,14 +123,16 @@ Resources:
                   - elasticloadbalancing:CreateListener
                   - elasticloadbalancing:ModifyTargetGroupAttributes
                   - route53:ChangeResourceRecordSets
+                  - route53:ChangeTagsForResource
                   - route53:ListResourceRecordSets
                   - route53:GetHostedZone
                   - route53:ListHostedZones
                   - route53:CreateHostedZone
                   - route53:DeleteHostedZone
+                  - route53:ListQueryLoggingConfigs
                   - route53:GetChange
                 Resource: "*"
-                  
+
   CopyZipsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -182,90 +158,8 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource: !Sub 'arn:aws:s3:::${LambdaZipsBucketName}/${QSS3KeyPrefix}*'
-
-  ExecuteCFRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: cf-executor
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - cloudformation:Create*
-                  - cloudformation:ListStacks*
-                  - cloudformation:Delete*
-                  - cloudformation:DescribeStacks*
-                  - s3:GetObject
-                  - ec2:DescribeVpcs
-                  - ec2:DescribeImages
-                  - ec2:DescribeSubnets
-                  - ec2:DescribeSecurityGroups
-                  - ec2:CreateSecurityGroup
-                  - ec2:AuthorizeSecurityGroupIngress
-                  - ec2:DeleteSecurityGroup
-                  - ec2:RunInstances
-                  - ec2:TerminateInstances
-                  - ec2:DescribeInstances
-                  - ec2:createTags
-                  - ec2:DeleteTags                  
-                  - cloud9:CreateEnvironmentEC2
-                  - cloud9:CreateEnvironmentSSH
-                  - cloud9:Describe*
-                  - cloud9:DeleteEnvironment
-                  - elasticloadbalancing:DescribeTargetGroups
-                  - elasticloadbalancing:DescribeLoadBalancers
-                  - elasticloadbalancing:DescribeListeners
-                  - elasticloadbalancing:DeleteTargetGroup
-                  - elasticloadbalancing:CreateTargetGroup
-                  - elasticloadbalancing:DeleteLoadBalancer
-                  - elasticloadbalancing:CreateLoadBalancer
-                  - elasticloadbalancing:DeleteListener
-                  - elasticloadbalancing:CreateListener
-                  - elasticloadbalancing:ModifyTargetGroupAttributes
-                  - route53:GetHostedZone
-                  - route53:CreateHostedZone
-                  - route53:DeleteHostedZone
-                  - route53:ListQueryLoggingConfigs
-                  - route53:GetChange
-                  - route53:ChangeTagsForResource
-                  - route53:ChangeResourceRecordSets
-                  - route53:ListResourceRecordSets
-                  - route53:ListHostedZones
-                  - iam:GetRole
-                  - iam:CreateRole
-                  - iam:DeleteRole
-                  - iam:GetRolePolicy
-                  - iam:DeleteRolePolicy
-                  - iam:PutRolePolicy
-                  - iam:PassRole
-                  - iam:CreateInstanceProfile
-                  - iam:DeleteInstanceProfile
-                  - iam:AddRoleToInstanceProfile
-                  - iam:RemoveRoleFromInstanceProfile
-                  - lambda:CreateFunction
-                  - lambda:GetFunction
-                  - lambda:GetFunctionConfiguration
-                  - lambda:DeleteFunction
-                  - lambda:InvokeFunction
-                Resource: "*"
 Outputs:
-  ValidateDeploymentRoleArn:
-    Value: !GetAtt ValidateDeploymentRole.Arn
-  GenerateIgnitionConfigRoleArn:
-    Condition: OCP4
-    Value: !GetAtt GenerateIgnitionConfigRole.Arn
+  StackDirectorRoleArn:
+    Value: !GetAtt StackDirectorRole.Arn
   CopyZipsRoleArn:
     Value: !GetAtt CopyZipsRole.Arn
-  ExecuteCFRoleArn:
-    Value: !GetAtt ExecuteCFRole.Arn         

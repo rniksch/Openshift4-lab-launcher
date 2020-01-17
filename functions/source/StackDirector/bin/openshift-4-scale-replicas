@@ -64,7 +64,7 @@ ${OC} patch configs.imageregistry.operator.openshift.io cluster --type merge --p
 
 
 # Since this CRD block namespace deletion forever.
-if oc get apiservice v1beta1.metrics.k8s.io ; then
+if ${OC} get apiservice v1beta1.metrics.k8s.io ; then
     echo "Delete the v1beta1.metrics.k8s.io apiservice since we are already scale down cluster wide monitioring."
     ${OC} delete apiservice v1beta1.metrics.k8s.io
 else
