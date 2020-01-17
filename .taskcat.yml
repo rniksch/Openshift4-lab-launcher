@@ -1,5 +1,5 @@
 project:
-  name: aws-ocp
+  name: t3-dip-440
   owner: quickstart-eng@amazon.com
   regions:
     - us-west-2
@@ -11,24 +11,24 @@ tests:
 #      LambdaZipsBucketName: "$[taskcat_autobucket]"
 #      QSS3KeyPrefix: "aws-ocp/"
 #    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
-  aws-ocp-master-3-11-env:
-    parameters:
-      RemoteAccessCIDR: "107.145.55.108/32"                    # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
-      InfrastructureName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
-      StudentNum: 1
-      VpcId: 'vpc-00b0e35273b77ac6c'
-      SubnetId: 'subnet-0be1a8e4507f6d953'
-      PullSecret: CHANGE-ME
-      PullSecretUser: CHANGE-ME
-      SubManagerUser: CHANGE-ME
-      SubManagerPassword: CHANGE-ME
-      SSHKey: CHANGE-ME                                # Can be overwritten in .taskcat_overrides.yml
-      HostedZoneName: openshift.awsworkshop.io
-      QSS3BucketName: "$[taskcat_autobucket]"
-      QSS3KeyPrefix: "aws-ocp/"
-    template: templates/aws-ocp3-student-env.template.yaml
-    regions:
-      - us-east-2
+#  aws-ocp-master-3-11-env:
+#    parameters:
+#      RemoteAccessCIDR: "107.145.55.108/32"                    # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+#      InfrastructureName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
+#      StudentNum: 1
+#      VpcId: 'vpc-00b0e35273b77ac6c'
+#      SubnetId: 'subnet-0be1a8e4507f6d953'
+#      PullSecret: CHANGE-ME
+#      PullSecretUser: CHANGE-ME
+#      SubManagerUser: CHANGE-ME
+#      SubManagerPassword: CHANGE-ME
+#      SSHKey: CHANGE-ME                                # Can be overwritten in .taskcat_overrides.yml
+#      HostedZoneName: openshift.awsworkshop.io
+#      QSS3BucketName: "$[taskcat_autobucket]"
+#      QSS3KeyPrefix: "t3-dip-440/"
+#    template: templates/aws-ocp3-student-env.template.yaml
+#    regions:
+#      - us-east-1
 #    
 #  aws-ocp-master-3-11:
 #    parameters:
@@ -50,21 +50,21 @@ tests:
 #    template: templates/aws-ocp-master.template.yaml
 #    regions:
 #      - us-east-2
-#  aws-ocp-master-4-2:
-#    parameters:
-#      AvailabilityZone: "$[taskcat_genaz_1]"    # Corresponds to the region
-#      RemoteAccessCIDR: "107.145.55.108/32"     # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
-#      NumStudents: "$[taskcat_random-numbers]"
-#      ClusterName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
-#      RhcosAmi: "ami-0bc59aaa7363b805d"         #"ami-08e10b201e19fd5e7"
-#      PullSecret: CHANGE-ME
-#      SSHKey: CHANGE-ME                         # Can be overwritten in .taskcat_overrides.yml
-#      HostedZoneName: openshift.awsworkshop.io
-#      QSS3BucketName: "$[taskcat_autobucket]"
-#      QSS3KeyPrefix: "aws-ocp/"
-#    template: templates/aws-ocp-master.template.yaml
-#    regions:
-#      - us-east-2
+  aws-ocp-master-4-2:
+    parameters:
+      AvailabilityZone: "$[taskcat_genaz_1]"    # Corresponds to the region
+      RemoteAccessCIDR: "107.145.55.108/32"     # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+      NumStudents: "$[taskcat_random-numbers]"
+      ClusterName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
+      RhcosAmi: "ami-0bc59aaa7363b805d"         #"ami-08e10b201e19fd5e7"
+      PullSecret: CHANGE-ME
+      SSHKey: CHANGE-ME                         # Can be overwritten in .taskcat_overrides.yml
+      HostedZoneName: openshift.awsworkshop.io
+      QSS3BucketName: "$[taskcat_autobucket]"
+      QSS3KeyPrefix: "t3-dip-440/"
+    template: templates/aws-ocp-master.template.yaml
+    regions:
+      - us-east-1
 #  aws-ocp-42-network:
 #    parameters:
 #      ClusterName: "trace3-test3"

@@ -115,5 +115,3 @@ def delete_contents_s3(s3_bucket):
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(s3_bucket)
     bucket.objects.all().delete()
-
-

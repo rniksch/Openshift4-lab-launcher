@@ -235,12 +235,9 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-lambda.template.yaml'
       Parameters:
-        OCP4: !If [ OCP4, "True", "False" ]
         LambdaZipsBucketName: !Ref LambdaZipsBucket
         CopyZipsRoleArn: !GetAtt IamStack.Outputs.CopyZipsRoleArn
-        ExecuteCFRoleArn: !GetAtt IamStack.Outputs.ExecuteCFRoleArn
-        ValidateDeploymentRoleArn: !GetAtt IamStack.Outputs.ValidateDeploymentRoleArn
-        GenerateIgnitionConfigRoleArn: !If [ OCP4, !GetAtt IamStack.Outputs.GenerateIgnitionConfigRoleArn, "" ]
+        StackDirectorRoleArn: !GetAtt IamStack.Outputs.StackDirectorRoleArn
         AuthBucket: !If [ OCP4, !Ref IgnitionBucket, "" ]
         ClusterName: !Ref ClusterName
         NumStudents: !Ref NumStudents
@@ -265,7 +262,8 @@ Resources:
     Condition: OCP4
     Type: Custom::LambdaDeployIgnition
     Properties:
-      ServiceToken: !GetAtt LambdaStack.Outputs.DeployIgnitionLambdaArn
+      Function: GenerateIgnition
+      ServiceToken: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
       IgnitionBucket: !If [OCP4, !Ref IgnitionBucket, "" ]
       PullSecret: !Ref PullSecret
       SSHKey: !Ref SSHKey
@@ -290,7 +288,8 @@ Resources:
     DependsOn: IgnitionExecute
     Type: Custom::LambdaDeployCF
     Properties:
-      ServiceToken: !GetAtt LambdaStack.Outputs.DeployCFLambdaArn
+      Function: DeployCF
+      ServiceToken: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
       StackName: !Ref ClusterName
       KeyToUpdate: "StudentNum"
       StudentNum: !Ref NumStudents
@@ -353,14 +352,14 @@ Resources:
       Name: !Sub ${ClusterName}-ValidateEvent
       ScheduleExpression:  "rate(1 hour)"
       Targets:
-        - Arn: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
+        - Arn: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
           Id: !Sub ${ClusterName}-ValidateDeploymentLambda
 
   LambdaInvokePermission:
     Condition: OCP4
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !GetAtt LambdaStack.Outputs.ValidateDeploymentLambdaArn
+      FunctionName: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn:

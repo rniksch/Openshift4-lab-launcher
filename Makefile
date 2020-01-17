@@ -5,12 +5,15 @@ VENV_ACTIVATE=. $(VENV_NAME)/bin/activate
 PYTHON=${VENV_NAME}/bin/python3
 PYTHON3 := $(shell python3 -V 2>&1)
 FUNCTIONS=GenerateIgnitionFiles DeployCF
+REPO ?= git.trace3.io:5555
+IMAGE ?= lambda_builder
+TAG ?= test
 
 submodules:
 	git submodule init
 	git submodule update
-	#cd submodules/quickstart-linux-bastion && git submodule init && git submodule update 
-	#cd submodules/quickstart-amazon-eks && git submodule init && git submodule update 
+	#cd submodules/quickstart-linux-bastion && git submodule init && git submodule update
+	#cd submodules/quickstart-amazon-eks && git submodule init && git submodule update
 
 help:
 	@echo   "make test  : executes taskcat"
@@ -33,16 +36,36 @@ public_repo:
 	#https://taskcat-tag-quickstart-jfrog-artifactory-c2fa9d34.s3-us-west-2.amazonaws.com/quickstart-jfrog-artifactory/templates/jfrog-artifactory-ec2-master.template
 	#curl https://taskcat-tag-quickstart-jfrog-artifactory-7008506c.s3-us-west-2.amazonaws.com/quickstart-jfrog-artifactory/templates/jfrog-artifactory-ec2-master.template
 
-create_zips:
+build:
+	docker build -t $(REPO)/$(IMAGE):$(TAG) .
+
+docker_build_lambda:	build
+	docker run -it --rm \
+	-v "$(shell pwd)/functions:/dest_functions" \
+	$(REPO)/$(IMAGE):$(TAG) \
+	-c "/bin/cp -R packages /dest_functions/"
+
+create_zips: venv
+	${VENV_ACTIVATE} && \
 	for folder in `ls functions/source/` ; do \
 		if [ ! -d functions/packages/$$folder ]; then \
 			mkdir functions/packages/$$folder ; \
 		fi ;\
 		cd functions/source/$$folder && \
 		ls && \
-		zip -r ../../packages/$$folder/lambda.zip * && \
+		if [ -f requirements.txt ]; then \
+			mkdir tmp; \
+			pip install -r requirements.txt -t tmp/. ; \
+		fi ;\
+		cd tmp; \
+		rm -rf *info; \
+	  zip -r ../../../packages/$$folder/lambda.zip * ; \
+		cd .. ; \
+		rm -rf tmp/; \
+	  zip -r ../../packages/$$folder/lambda.zip * ; \
 		cd ../../../ ; \
-	done
+	done; \
+	rm -rf $(VENV_NAME)
 
 verify:
 ifdef PYTHON3
@@ -55,10 +78,7 @@ endif
 
 venv:
 	@make verify
-	python3 -m venv $(VENV_NAME)/
-	${VENV_ACTIVATE}
-	${PYTHON} -m pip install -U pip
-	${PYTHON} -m pip install -r requirements.txt
+	python3 -m venv $(VENV_NAME); \
 
 run_lambda: venv
 	export SSH_KEY='${SSH_KEY}' && \
