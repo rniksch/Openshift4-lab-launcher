@@ -384,6 +384,24 @@ To login to the AIO node use the following for SSH access:<br>
     <td>UI Password:
     <td><code>{{ cluster["kubeadmin-password"]}}</code></td>
   </tr>
+  {% if cluster.cloud_9_url is defined %}
+    <tr>
+    <td class="header">Cloud9 Environment info</td>
+    <td class="header"></td>
+  </tr>
+  <tr>
+    <td>Console link:
+    <td><a href="{{ cluster['cloud_9_url'] }}">{{ cluster['cloud_9_url'] }}</a></td>
+  </tr>
+  <tr>
+    <td>Cloud9 Username:
+    <td><code>{{ cluster['cluster_name'] }}</code></td>
+  </tr>
+  <tr>
+    <td>Cloud9 Password:
+    <td><code>{{ cluster["kubeadmin-password"]}}</code></td>
+  </tr>
+  {% endif %}
 </table>
 </div>
 </div>
