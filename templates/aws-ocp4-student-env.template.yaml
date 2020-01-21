@@ -6,7 +6,7 @@ Metadata:
       - Label:
           default: Security configuration
         Parameters:
-          - RemoteAccessCIDR    
+          - RemoteAccessCIDR
       - Label:
           default: Network configuration
         Parameters:
@@ -26,8 +26,10 @@ Metadata:
       - Label:
           default: Cloud9 information
           Parameters:
+            - CreateCloud9Instance
             - Cloud9AutoStopInMin
             - Cloud9InstanceType
+            - Cloud9UserPassword
       - Label:
           default: AWS Quick Start Configuration
         Parameters:
@@ -41,7 +43,7 @@ Metadata:
       VPCCIDR:
         default: VPC CIDR
       RemoteAccessCIDR:
-        default: Remote access CIDR 
+        default: Remote access CIDR
       OpenShiftVersion:
         default: OpenShift version
       MasterStack:
@@ -56,10 +58,14 @@ Metadata:
         default: "Public Hosted Zone Name"
       StudentNum:
         default: Student Number for Lab ID
+      CreateCloud9Instance:
+        default: Create Cloud9 instance?
       Cloud9AutoStopInMin:
         default: Cloud9 automatic stop time in minutes
       Cloud9InstanceType:
         default: Cloud9 instance type
+      Cloud9UserPassword:
+        default: Cloud9 user password
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3KeyPrefix:
@@ -78,9 +84,9 @@ Parameters:
     Default: 10.0.0.0/24
     Type: String
   RemoteAccessCIDR:
-    Description: The remote CIDR range for allowing SSH into the Cloud9 instance. 
-      We recommend that you set this value to a trusted IP range. 
-      For example, you might want to grant specific ranges inside your corporate network SSH access. 
+    Description: The remote CIDR range for allowing SSH into the Cloud9 instance.
+      We recommend that you set this value to a trusted IP range.
+      For example, you might want to grant specific ranges inside your corporate network SSH access.
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     Type: String
   OpenShiftVersion:
@@ -118,6 +124,10 @@ Parameters:
       Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
       Default: "example.com"
       Type: String
+  CreateCloud9Instance:
+    Description: Create a Cloud9 Instance? Otherwise leave blank
+    Default: ""
+    Type: String
   Cloud9AutoStopInMin:
     Description: The time the Cloud9 instance is automatically stopped after no use.
     Default: 30
@@ -129,6 +139,11 @@ Parameters:
     MaxLength: '20'
     Default: "t2.micro"
     Type: String
+  Cloud9UserPassword:
+    Description: The password used to assign to the Cloud9 user
+    Default: ""
+    Type: String
+    NoEcho: True
   QSS3BucketName:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -148,6 +163,11 @@ Parameters:
       uppercase letters, hyphens (-), and forward slash (/).
     Default: aws-ocp/
     Type: String
+
+Conditions:
+    CreateCloud9Instance:
+      !Not [!Equals [!Ref CreateCloud9Instance, '']]
+
 Resources:
   NetworkStack:
     Type: AWS::CloudFormation::Stack
@@ -172,7 +192,7 @@ Resources:
         CidrIp: !Ref VPCCIDR
       VpcId: !Ref VpcId
 
-  BootStrapStack: 
+  BootStrapStack:
     DependsOn: NetworkStack
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -216,18 +236,28 @@ Resources:
         HostedZoneName: !Ref HostedZoneName
         ControlPlane: "yes"
 
-  #Cloud9Instance:
-  #  DependsOn: ControlPlaneStack
-  #  Type: AWS::Cloud9::EnvironmentEC2
-  #  Properties: 
-  #    AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
-  #    Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
-  #    InstanceType: !Ref Cloud9InstanceType
-  #    Name: !Sub 'student${StudentNum}'
-  #    #OwnerArn: String
-  #    #Repositories: 
-  #    #  - Repository
-  #    SubnetId: !Ref SubnetId
+  Cloud9User:
+    Condition: CreateCloud9Instance
+    Type: AWS::IAM::User
+    Properties:
+      LoginProfile:
+        Password: !Ref Cloud9UserPassword
+      UserName: !Sub ${ClusterName}-student${StudentNum}
+      ManagedPolicyArns:
+       - arn:aws:iam::aws:policy/AWSCloud9EnvironmentMember
+
+  Cloud9Instance:
+    Condition: CreateCloud9Instance
+    DependsOn: ControlPlaneStack
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
+      Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
+      InstanceType: !Ref Cloud9InstanceType
+      Name: !Sub 'student${StudentNum}'
+      OwnerArn: !GetAtt Cloud9User.Arn
+      SubnetId: !Ref SubnetId
+
 Outputs:
   OpenShiftVersion:
     Value: !Ref OpenShiftVersion

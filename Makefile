@@ -25,7 +25,7 @@ delete:
 	aws cloudformation delete-stack --stack-name test
 
 .ONESHELL:
-test: lint create_zips
+test: lint docker_build_lambda
 	taskcat test run -n
 
 lint:
@@ -81,12 +81,12 @@ venv:
 	python3 -m venv $(VENV_NAME); \
 
 run_lambda: venv
-	export SSH_KEY='${SSH_KEY}' && \
-	export PULL_SECRET='${PULL_SECRET}' && \
 	${VENV_ACTIVATE} && \
 	cd functions/source/GenerateIgnitionFiles/ && \
-	python-lambda-local -f lambda_handler lambda_function.py ../../tests/ignition_files_env_variables.json -t 300
+	python-lambda-local -f lambda_handler lambda_function.py ../../tests/deploy_cf_env_variables.json -t 300
 
+#	export SSH_KEY='${SSH_KEY}' && \
+#	export PULL_SECRET='${PULL_SECRET}' && \
 
 # Used from other projects, commenting out for reference
 #get_public_dns:
