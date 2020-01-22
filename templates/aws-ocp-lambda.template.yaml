@@ -60,6 +60,10 @@ Parameters:
       can include numbers, lowercase letters, uppercase letters, hyphens (-), dots(.) and
       forward slash (/).
     Type: String
+  CreateCloud9Instance:
+    Description: Leave blank if no
+    Default: ""
+    Type: String
   LogLevel:
     Description: Lambda log level
     Default: "DEBUG"

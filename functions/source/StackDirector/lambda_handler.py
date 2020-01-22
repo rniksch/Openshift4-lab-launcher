@@ -68,7 +68,14 @@ def parse_properties(properties):
             cf_params["Parameters"].append(temp)
     return cf_params
 
-def loop_child_stacks(cf_client, cf_params, action, **kwargs):
+
+def get_kubeadmin_pass(s3_bucket, student_cluster_name):
+    dest = student_cluster_name + "-admin"
+    get_from_s3(s3_bucket, student_cluster_name, key="auth/kubeadmin-password", dest_file_name=dest)
+    cur_file = open("/tmp/{}".format(dest), "r")
+    return cur_file.read()
+
+def loop_child_stacks(cf_client, cf_params, action, event, **kwargs):
     waiter_array = []
     numStacks = 1
     current_numStacks = 0
@@ -103,6 +110,12 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
         original_name = cf_params["StackName"]
         cf_params["StackName"] = "{}-{}".format(cf_params["StackName"],x)
         stack = stack_exists(cf_client=cf_client, stack_name=cf_params["StackName"])
+        if event["ResourceProperties"]["CreateCloud9Instance"] and not event["ResourceProperties"]["Cloud9UserPassword"]:
+            # Get kubeadmin password and set Cloud9UserPassword
+            for param in cf_params["Parameters"]:
+                if param["ParameterKey"] == "Cloud9UserPassword":
+                    student_cluster_name = event["ResourceProperties"]["ClusterName"] + '-' + 'student' + str(x)
+                    param["ParameterValue"] = get_kubeadmin_pass(kwargs["s3_bucket"], student_cluster_name)
         cur_action = action
         if 'kwargs["old_params"]' in vars():
             log.debug("action is {} and x is {} and old_params Numstacks {}".format(action,x,kwargs["old_params"]["NumStacks"]))
@@ -114,6 +127,7 @@ def loop_child_stacks(cf_client, cf_params, action, **kwargs):
             else:
                 cur_action = "create"
         if cur_action == "create" and stack == None:
+            log.debug("CF PARAMS: {}".format(cf_params))
             stack_result = cf_client.create_stack(**cf_params)
 
         elif cur_action == "delete" and stack:
@@ -148,7 +162,7 @@ def install_dependencies(openshift_client_mirror_url, openshift_install_package,
     sha256sum_file = 'sha256sum.txt'
     retries = 1
     url = openshift_client_mirror_url + sha256sum_file
-    log.info("Downloading sha256sum file...")
+    log.info("Downloading sha256sum file for OpenShift install client...")
     url_retreive(url, download_path + sha256sum_file)
     log.debug("Getting SHA256 hash for file {}".format(download_path + sha256sum_file))
     sha256sum_dict = parse_sha256sum_file(download_path + sha256sum_file)
@@ -314,7 +328,7 @@ def check_file_s3(s3_bucket,key):
         log.debug("File at location {} found".format(key))
         return True
     except Exception as e:
-        log.error("File not found at {} and key {}".format(s3_bucket,key))
+        log.debug("File not found at {} and key {}".format(s3_bucket,key))
         return False
 
 def check_cluster_availability(url):
@@ -324,6 +338,7 @@ def check_cluster_availability(url):
     except urllib.error.URLError as e:
         if "CERTIFICATE_VERIFY_FAILED" in e.reason.strerror:
             response = True
+            log.debug("Cluster is reachable at {}".format(url))
     except:
         log.error("Unhandled exception, cluster must not be ready")
     return response
@@ -384,12 +399,12 @@ def build_stack(cf_client,rebuild_array):
             time.sleep(20)
 
 def rebuild_stacks(cluster_name, failed_clusters, qss3bucket,
-                            qss3keyprefix, student_template, s3_bucket):
+                   qss3keyprefix, student_template, s3_bucket):
     rebuild_array = []
     for failed_student in failed_clusters:
-        log.info("Attempting to rebuild student {} stack".format(failed_student))
         cf_client = boto3.client("cloudformation")
         stack_name = '{}-{}'.format(cluster_name,failed_student)
+        log.info("Attempting to rebuild {} stack".format(stack_name))
         student_cluster_name = cluster_name + '-' + 'student' + str(failed_student)
         log.debug("Student cluster name is {}".format(student_cluster_name))
         rebuild_key = os.path.join(student_cluster_name, "rebuild")
@@ -416,8 +431,8 @@ def rebuild_stacks(cluster_name, failed_clusters, qss3bucket,
     build_stack(cf_client,rebuild_array)
 
 def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
-                        hosted_zone_name, openshift_version, qss3bucket,
-                            qss3keyprefix, student_template):
+                         hosted_zone_name, openshift_version, qss3bucket,
+                         qss3keyprefix, student_template, create_cloud9_instance):
     cluster_data = {"cluster_name": cluster_name,
                     "openshift_version": openshift_version,
                     "clusters_information": [] }
@@ -430,11 +445,13 @@ def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
             get_from_s3(s3_bucket,student_cluster_name,key="auth/kubeadmin-password", dest_file_name=dest)
             cur_file = open("/tmp/{}".format(dest), "r")
             temp_dict = {"cluster_name": student_cluster_name,
-                        "number": i,
-                        "kubeadmin-password": cur_file.read(),
-                        "console-url": "https://console-openshift-console.apps.{}.{}".format(student_cluster_name, hosted_zone_name),
-                        "ssh-url": "ssh.{}.{}".format(student_cluster_name, hosted_zone_name)
+                         "number": i,
+                         "kubeadmin-password": cur_file.read(),
+                         "console-url": "https://console-openshift-console.apps.{}.{}".format(student_cluster_name, hosted_zone_name),
+                         "ssh-url": "ssh.{}.{}".format(student_cluster_name, hosted_zone_name)
             }
+            if create_cloud9_instance:
+                temp_dict["cloud_9_url"] = "https://console.aws.amazon.com/cloud9"
             cluster_data["clusters_information"].append(temp_dict)
         else:
             # Just need to know which index of the Students that failed to rebuild.
@@ -444,9 +461,7 @@ def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
         try:
             j2Env = jinja2.Environment(loader = jinja2.FileSystemLoader("./templates"))
             template = j2Env.get_template("clusters.j2")
-            log.debug(template)
             rendered_text = template.render(cluster_data)
-            #print("{}".format(rendered_text))
             add_file_to_s3(s3_bucket=s3_bucket,body=rendered_text,
                             key="workshop.html", content_type="text/html",
                             acl="public-read")
@@ -455,7 +470,7 @@ def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
     if len(cluster_data["clusters_information"]) == number_of_students:
         deactivate_event(cluster_name)
     else:
-        rebuild_stacks(cluster_name,failed_clusters, qss3bucket,
+        rebuild_stacks(cluster_name, failed_clusters, qss3bucket,
                             qss3keyprefix, student_template, s3_bucket)
 
 def handler(event, context):
@@ -509,22 +524,24 @@ def handler(event, context):
             cfnresponse.send(event, context, status, {}, None)
     elif 'RequestType' in event.keys() and event['ResourceProperties']['Function'] == 'DeployCF':
         try:
-            cf_client = boto3.client('cloudformation')
-            cf_params = parse_properties(event['ResourceProperties'])
             level = logging.getLevelName(os.getenv('LogLevel'))
             log.setLevel(level)
             log.debug(event)
             cf_client = boto3.client('cloudformation')
+            cf_params = parse_properties(event['ResourceProperties'])
+            log.debug(cf_params)
+            cf_client = boto3.client('cloudformation')
+            s3_bucket = os.getenv('AuthBucket')
             if event['RequestType'] == 'Delete':
                 log.debug("Inside delete")
                 log.info(event)
-                loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="delete")
+                loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="delete", event=event)
             elif event['RequestType'] == 'Update':
                 old_params = parse_properties(event['OldResourceProperties'])
                 log.debug("Inside update and old_params is {}".format(old_params))
-                loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="update", old_params=old_params)
+                loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="update", event=event, old_params=old_params)
             else:
-                loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="create")
+                loop_child_stacks(cf_client=cf_client, cf_params=cf_params, action="create", event=event, s3_bucket=s3_bucket)
             log.info("Completed")
         except Exception:
             logging.error('Unhandled exception', exc_info=True)
@@ -533,8 +550,6 @@ def handler(event, context):
             cfnresponse.send(event, context, status, {}, None)
     else:
         try:
-            log_level = os.getenv('LogLevel')
-            log.setLevel(log_level)
             level = logging.getLevelName(os.getenv('LogLevel'))
             log.setLevel(level)
             log.debug(event)
@@ -548,6 +563,7 @@ def handler(event, context):
             student_template = os.getenv("StudentTemplate")
             qss3bucket = os.getenv("QSS3BucketName")
             qss3keyprefix = os.getenv("QSS3KeyPrefix")
+            create_cloud9_instance = os.getenv("CreateCloud9Instance")
             file_extension = '.tar.gz'
             if sys.platform == 'darwin':
                 openshift_install_os = '-mac-'
@@ -558,15 +574,15 @@ def handler(event, context):
             download_path = '/tmp/'
             log.info("Cluster name: " + os.getenv('ClusterName'))
             scale_ocp_replicas(cluster_name, number_of_students, hosted_zone_name,
-                            s3_bucket, openshift_client_mirror_url,
-                            openshift_client_package, openshift_client_binary,
-                            download_path)
+                               s3_bucket, openshift_client_mirror_url,
+                               openshift_client_package, openshift_client_binary,
+                               download_path)
             # We Rebuild stacks inside generate_webtemplate because
             # we want to ensure the webpage is created before in case
             # Rebuilding takes more than 15 mins. and the lambda times out.
             generate_webtemplate(s3_bucket, cluster_name, number_of_students,
-                                hosted_zone_name, openshift_version, qss3bucket,
-                                qss3keyprefix, student_template)
+                                 hosted_zone_name, openshift_version, qss3bucket,
+                                 qss3keyprefix, student_template, create_cloud9_instance)
             log.info("Complete")
         except Exception:
             logging.error('Unhandled exception', exc_info=True)

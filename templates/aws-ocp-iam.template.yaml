@@ -76,6 +76,14 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
+                  - iam:GetUser
+                  - iam:CreateUser
+                  - iam:DeleteUser
+                  - iam:AttachUserPolicy
+                  - iam:DetachUserPolicy
+                  - iam:ListAccessKeys
+                  - iam:CreateLoginProfile
+                  - iam:DeleteLoginProfile
                   - iam:GetRole
                   - iam:CreateRole
                   - iam:DeleteRole
