@@ -148,6 +148,7 @@ Resources:
           StudentTemplate: !Ref StudentTemplate
           QSS3BucketName: !Ref QSS3BucketName
           QSS3KeyPrefix: !Ref QSS3KeyPrefix
+          CreateCloud9Instance: !Ref CreateCloud9Instance
       Code:
         S3Bucket: !Ref LambdaZipsBucketName
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/StackDirector/lambda.zip'

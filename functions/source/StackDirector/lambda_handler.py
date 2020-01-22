@@ -69,6 +69,14 @@ def parse_properties(properties):
     return cf_params
 
 
+def set_cloud9_password(event, cf_params, student_number, s3_bucket):
+    if event["ResourceProperties"]["CreateCloud9Instance"] and not event["ResourceProperties"]["Cloud9UserPassword"]:
+        # Get kubeadmin password and set Cloud9UserPassword
+        for param in cf_params["Parameters"]:
+            if param["ParameterKey"] == "Cloud9UserPassword":
+                student_cluster_name = event["ResourceProperties"]["ClusterName"] + '-' + 'student' + str(student_number)
+                param["ParameterValue"] = get_kubeadmin_pass(s3_bucket, student_cluster_name)
+
 def get_kubeadmin_pass(s3_bucket, student_cluster_name):
     dest = student_cluster_name + "-admin"
     get_from_s3(s3_bucket, student_cluster_name, key="auth/kubeadmin-password", dest_file_name=dest)
@@ -110,12 +118,6 @@ def loop_child_stacks(cf_client, cf_params, action, event, **kwargs):
         original_name = cf_params["StackName"]
         cf_params["StackName"] = "{}-{}".format(cf_params["StackName"],x)
         stack = stack_exists(cf_client=cf_client, stack_name=cf_params["StackName"])
-        if event["ResourceProperties"]["CreateCloud9Instance"] and not event["ResourceProperties"]["Cloud9UserPassword"]:
-            # Get kubeadmin password and set Cloud9UserPassword
-            for param in cf_params["Parameters"]:
-                if param["ParameterKey"] == "Cloud9UserPassword":
-                    student_cluster_name = event["ResourceProperties"]["ClusterName"] + '-' + 'student' + str(x)
-                    param["ParameterValue"] = get_kubeadmin_pass(kwargs["s3_bucket"], student_cluster_name)
         cur_action = action
         if 'kwargs["old_params"]' in vars():
             log.debug("action is {} and x is {} and old_params Numstacks {}".format(action,x,kwargs["old_params"]["NumStacks"]))
@@ -127,6 +129,7 @@ def loop_child_stacks(cf_client, cf_params, action, event, **kwargs):
             else:
                 cur_action = "create"
         if cur_action == "create" and stack == None:
+            set_cloud9_password(event, cf_params, x, kwargs["s3_bucket"])
             log.debug("CF PARAMS: {}".format(cf_params))
             stack_result = cf_client.create_stack(**cf_params)
 
