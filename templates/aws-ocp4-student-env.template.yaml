@@ -261,5 +261,3 @@ Resources:
 Outputs:
   OpenShiftVersion:
     Value: !Ref OpenShiftVersion
-  #Cloud9InstanceArn:
-  #  Value: !GetAtt Cloud9Instance.Arn
