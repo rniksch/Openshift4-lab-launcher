@@ -180,7 +180,6 @@ Resources:
         SubnetId: !Ref SubnetId
         HostedZoneName: !Ref HostedZoneName
 
-  # TODO Update proper Networks to open up
   MasterSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -235,6 +234,56 @@ Resources:
         ToPort: 22623
         CidrIp: !Ref RemoteAccessCIDR
       VpcId: !Ref VpcId
+
+  MasterIngressEtcd:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: etcd
+      FromPort: 2379
+      ToPort: 2380
+      IpProtocol: tcp
+
+  MasterIngressVxlan:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Vxlan packets
+      FromPort: 4789
+      ToPort: 4789
+      IpProtocol: udp
+
+  MasterIngressInternal:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Internal cluster communication
+      FromPort: 9000
+      ToPort: 9999
+      IpProtocol: tcp
+
+  MasterIngressKube:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Kubernetes kubelet, scheduler and controller manager
+      FromPort: 10250
+      ToPort: 10259
+      IpProtocol: tcp
+
+  MasterIngressIngressServices:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Kubernetes ingress services
+      FromPort: 30000
+      ToPort: 32767
+      IpProtocol: tcp
 
   BootStrapStack:
     DependsOn: NetworkStack
