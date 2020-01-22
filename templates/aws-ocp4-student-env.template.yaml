@@ -305,8 +305,3 @@ Resources:
 Outputs:
   OpenShiftVersion:
     Value: !Ref OpenShiftVersion
-<<<<<<< HEAD
-=======
-  #Cloud9InstanceArn:
-  #  Value: !GetAtt Cloud9Instance.Arn
->>>>>>> Adding OCP master security group port ranges

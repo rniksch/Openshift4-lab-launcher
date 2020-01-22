@@ -154,7 +154,11 @@ Parameters:
     Type: String
     NoEcho: True
   CreateCloud9Instance:
+<<<<<<< HEAD
     Description: Otherwise leave blank
+=======
+    Description: Create a Cloud9 Instance? Otherwise leave blank
+>>>>>>> Adding Cloud9 password generation
     Default: ""
     Type: String
   Cloud9AutoStopInMin:

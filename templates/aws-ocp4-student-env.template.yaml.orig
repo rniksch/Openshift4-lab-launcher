@@ -125,7 +125,11 @@ Parameters:
       Default: "example.com"
       Type: String
   CreateCloud9Instance:
+<<<<<<< HEAD
     Description: Otherwise leave blank
+=======
+    Description: Create a Cloud9 Instance? Otherwise leave blank
+>>>>>>> Adding Cloud9 password generation
     Default: ""
     Type: String
   Cloud9AutoStopInMin:
@@ -195,6 +199,14 @@ Resources:
         ToPort: 22
         CidrIp: !Ref VPCCIDR
       - IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
         ToPort: 6443
         FromPort: 6443
         CidrIp: !Ref VPCCIDR
@@ -215,56 +227,20 @@ Resources:
         FromPort: 6443
         CidrIp: !Ref RemoteAccessCIDR
       - IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
         FromPort: 22623
         ToPort: 22623
         CidrIp: !Ref RemoteAccessCIDR
       VpcId: !Ref VpcId
 
-<<<<<<< HEAD
   BootStrapStack:
-=======
-  MasterIngressEtcd:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !GetAtt MasterSecurityGroup.GroupId
-      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
-      Description: etcd
-      FromPort: 2379
-      ToPort: 2380
-      IpProtocol: tcp
-
-  MasterIngressVxlan:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !GetAtt MasterSecurityGroup.GroupId
-      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
-      Description: Vxlan packets
-      FromPort: 4789
-      ToPort: 4789
-      IpProtocol: udp
-
-  MasterIngressKube:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !GetAtt MasterSecurityGroup.GroupId
-      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
-      Description: Kubernetes kubelet, scheduler and controller manager
-      FromPort: 10250
-      ToPort: 10259
-      IpProtocol: tcp
-
-  MasterIngressIngressServices:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !GetAtt MasterSecurityGroup.GroupId
-      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
-      Description: Kubernetes ingress services
-      FromPort: 30000
-      ToPort: 32767
-      IpProtocol: tcp
-
-  BootStrapStack: 
->>>>>>> Adding OCP master security group port ranges
     DependsOn: NetworkStack
     Type: AWS::CloudFormation::Stack
     Properties:
