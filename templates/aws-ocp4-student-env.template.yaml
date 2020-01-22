@@ -195,6 +195,14 @@ Resources:
         ToPort: 22
         CidrIp: !Ref VPCCIDR
       - IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
         ToPort: 6443
         FromPort: 6443
         CidrIp: !Ref VPCCIDR
@@ -213,6 +221,14 @@ Resources:
       - IpProtocol: tcp
         ToPort: 6443
         FromPort: 6443
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
         CidrIp: !Ref RemoteAccessCIDR
       - IpProtocol: tcp
         FromPort: 22623
