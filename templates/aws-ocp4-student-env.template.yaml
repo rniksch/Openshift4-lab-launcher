@@ -125,7 +125,7 @@ Parameters:
       Default: "example.com"
       Type: String
   CreateCloud9Instance:
-    Description: Create a Cloud9 Instance? Otherwise leave blank
+    Description: Otherwise leave blank
     Default: ""
     Type: String
   Cloud9AutoStopInMin:
