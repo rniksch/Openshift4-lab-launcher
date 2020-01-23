@@ -68,7 +68,6 @@ def parse_properties(properties):
             cf_params["Parameters"].append(temp)
     return cf_params
 
-
 def set_cloud9_password(event, cf_params, student_number, s3_bucket):
     if event["ResourceProperties"]["CreateCloud9Instance"] and not event["ResourceProperties"]["Cloud9UserPassword"]:
         # Get kubeadmin password and set Cloud9UserPassword
@@ -292,20 +291,21 @@ def run_process(cmd):
         log.error(e.filename)
         raise
 
-def upload_directory_to_s3(download_path, student_cluster_name, s3_bucket):
+def upload_file_to_s3(s3_path, local_path, s3_bucket):
     client = boto3.client('s3')
-    folder = download_path + student_cluster_name
-    log.info("Uploading {} to s3 bucket {}...".format(folder, s3_bucket))
-    for subdir, dirs, files in os.walk(folder):
-        for file in files:
-            local_path = os.path.join(subdir, file)
-            relative_path = os.path.relpath(local_path, folder)
-            s3_path = os.path.join(student_cluster_name, relative_path)
-            try:
-                client.head_object(Bucket=s3_bucket, Key=s3_path)
-                log.debug("File found on S3! Skipping {}...".format(s3_path))
-            except:
-                client.upload_file(local_path, s3_bucket, s3_path)
+    log.info("Uploading {} to s3 bucket {}...".format(local_path, os.path.join(s3_bucket, s3_path)))
+    try:
+        client.head_object(Bucket=s3_bucket, Key=s3_path)
+        log.debug("File found on S3! Skipping {}...".format(s3_path))
+    except:
+        client.upload_file(local_path, s3_bucket, s3_path)
+
+def upload_ignition_files_to_s3(local_student_folder, s3_bucket):
+    files_to_upload = ['auth/kubeconfig', 'auth/kubeadmin-password', 'master.ign', 'bootstrap.ign'] 
+    for file in files_to_upload:
+        s3_path = os.path.join(os.path.basename(local_student_folder), file)
+        local_path = os.path.join(local_student_folder, file)
+        upload_file_to_s3(s3_path, local_path, s3_bucket)
 
 def delete_contents_s3(s3_bucket):
     s3 = boto3.resource('s3')
@@ -319,7 +319,7 @@ def get_from_s3(s3_bucket,student_cluster_name,key,dest_file_name):
     if check_file_s3(s3_bucket,key=s3_path):
         client.download_file(s3_bucket, s3_path, destination)
 
-def add_file_to_s3(s3_bucket,body,key, content_type, acl):
+def add_file_to_s3(s3_bucket, body, key, content_type, acl):
     client = boto3.client('s3')
     client.put_object(Body=body, Bucket=s3_bucket, Key=key,
                     ContentType=content_type, ACL=acl)
@@ -478,47 +478,57 @@ def generate_webtemplate(s3_bucket, cluster_name, number_of_students,
 
 def handler(event, context):
     status = cfnresponse.SUCCESS
+    level = logging.getLevelName(os.getenv('LogLevel'))
+    log.setLevel(level)
+    log.debug(event)
+    s3_bucket = os.getenv('AuthBucket')
+    cluster_name = os.getenv('ClusterName')
+    number_of_students = int(os.getenv('NumStudents'))
+    hosted_zone_name = os.getenv('HostedZoneName')
+    openshift_client_base_mirror_url = os.getenv('OpenShiftMirrorURL')
+    openshift_version = os.getenv('OpenShiftVersion')
+    openshift_client_binary = os.getenv('OpenShiftClientBinary')
+    student_template = os.getenv("StudentTemplate")
+    qss3bucket = os.getenv("QSS3BucketName")
+    qss3keyprefix = os.getenv("QSS3KeyPrefix")
+    create_cloud9_instance = os.getenv("CreateCloud9Instance")
+    file_extension = '.tar.gz'
+    if sys.platform == 'darwin':
+        openshift_install_os = '-mac-'
+    else:
+        openshift_install_os = '-linux-'
+    openshift_client_package = openshift_client_binary + openshift_install_os + openshift_version + file_extension
+    openshift_client_mirror_url = openshift_client_base_mirror_url + openshift_version + "/"
+    download_path = '/tmp/'
+    log.info("Cluster name: " + os.getenv('ClusterName'))
     # Run generate ignition files functions
     if 'RequestType' in event.keys() and event['ResourceProperties']['Function'] == 'GenerateIgnition':
         try:
-            level = logging.getLevelName(os.getenv('LogLevel'))
-            log.setLevel(level)
-            log.debug(event)
-            cf_client = boto3.client('cloudformation')
             if event['RequestType'] == 'Delete':
                 log.info("Delete request found, initiating..")
-                delete_contents_s3(s3_bucket=event['ResourceProperties']['IgnitionBucket'])
+                delete_contents_s3(s3_bucket=s3_bucket)
             elif event['RequestType'] == 'Update':
                 log.info("Update sent, however, this is unsupported at this time.")
                 pass
             else:
                 log.info("Delete and Update not detected, proceeding with Create")
-                s3_bucket = event['ResourceProperties']['IgnitionBucket']
                 pull_secret = event['ResourceProperties'].get('PullSecret', os.getenv('PULL_SECRET'))
                 ssh_key = event['ResourceProperties'].get('SSHKey', os.environ.get('SSH_KEY'))
-                cluster_name = event['ResourceProperties']['ClusterName']
-                number_of_students = int(event['ResourceProperties']['NumStudents'])
-                openshift_client_base_mirror_url = event['ResourceProperties']['OpenShiftMirrorURL']
-                openshift_version = event['ResourceProperties']['OpenShiftVersion']
                 openshift_install_binary = event['ResourceProperties']['OpenShiftInstallBinary']
-                hosted_zone_name = event['ResourceProperties']['HostedZoneName']
-                file_extension = '.tar.gz'
-                if sys.platform == 'darwin':
-                    openshift_install_os = '-mac-'
-                else:
-                    openshift_install_os = '-linux-'
                 openshift_install_package = openshift_install_binary + openshift_install_os + openshift_version + file_extension
-                openshift_client_mirror_url = openshift_client_base_mirror_url + openshift_version + "/"
-                download_path = '/tmp/'
 
-                log.info("Generating OCP installation files for cluster " + event['ResourceProperties']['ClusterName'])
+                log.info("Generating OCP installation files for cluster " + cluster_name)
                 install_dependencies(openshift_client_mirror_url, openshift_install_package, openshift_install_binary, download_path)
                 for i in range(number_of_students):
                     student_cluster_name = cluster_name + '-' + 'student' + str(i)
                     generate_ignition_files(openshift_install_binary, download_path,
                                             student_cluster_name, ssh_key, pull_secret,
                                             hosted_zone_name, student_num=i)
-                    upload_directory_to_s3(download_path, student_cluster_name, s3_bucket)
+                    local_student_folder = download_path + student_cluster_name
+                    upload_ignition_files_to_s3(local_student_folder, s3_bucket)
+                    building_key = os.path.join(student_cluster_name, "building")
+                    add_file_to_s3(s3_bucket=s3_bucket,body="building",key=building_key,
+                                    content_type="text/plain", acl="private")
             log.info("Complete")
         except Exception:
             logging.error('Unhandled exception', exc_info=True)
@@ -527,14 +537,9 @@ def handler(event, context):
             cfnresponse.send(event, context, status, {}, None)
     elif 'RequestType' in event.keys() and event['ResourceProperties']['Function'] == 'DeployCF':
         try:
-            level = logging.getLevelName(os.getenv('LogLevel'))
-            log.setLevel(level)
-            log.debug(event)
             cf_client = boto3.client('cloudformation')
             cf_params = parse_properties(event['ResourceProperties'])
             log.debug(cf_params)
-            cf_client = boto3.client('cloudformation')
-            s3_bucket = os.getenv('AuthBucket')
             if event['RequestType'] == 'Delete':
                 log.debug("Inside delete")
                 log.info(event)
@@ -553,29 +558,6 @@ def handler(event, context):
             cfnresponse.send(event, context, status, {}, None)
     else:
         try:
-            level = logging.getLevelName(os.getenv('LogLevel'))
-            log.setLevel(level)
-            log.debug(event)
-            s3_bucket = os.getenv('AuthBucket')
-            cluster_name = os.getenv('ClusterName')
-            number_of_students = int(os.getenv('NumStudents'))
-            hosted_zone_name = os.getenv('HostedZoneName')
-            openshift_client_base_mirror_url = os.getenv('OpenShiftMirrorURL')
-            openshift_version = os.getenv('OpenShiftVersion')
-            openshift_client_binary = os.getenv('OpenShiftClientBinary')
-            student_template = os.getenv("StudentTemplate")
-            qss3bucket = os.getenv("QSS3BucketName")
-            qss3keyprefix = os.getenv("QSS3KeyPrefix")
-            create_cloud9_instance = os.getenv("CreateCloud9Instance")
-            file_extension = '.tar.gz'
-            if sys.platform == 'darwin':
-                openshift_install_os = '-mac-'
-            else:
-                openshift_install_os = '-linux-'
-            openshift_client_package = openshift_client_binary + openshift_install_os + openshift_version + file_extension
-            openshift_client_mirror_url = openshift_client_base_mirror_url + openshift_version + "/"
-            download_path = '/tmp/'
-            log.info("Cluster name: " + os.getenv('ClusterName'))
             scale_ocp_replicas(cluster_name, number_of_students, hosted_zone_name,
                                s3_bucket, openshift_client_mirror_url,
                                openshift_client_package, openshift_client_binary,
