@@ -18,8 +18,6 @@ Metadata:
           default: Lab information
         Parameters:
             - OpenShiftVersion
-            - ClusterName
-            - StudentNum
             - MasterStack
             - RhcosAmi
             - IgnitionLocation
@@ -48,16 +46,12 @@ Metadata:
         default: OpenShift version
       MasterStack:
         default: Master CloudFormation StackName
-      ClusterName:
-        default: "Cluster Name"
       RhcosAmi:
         default: "Red Hat Enterprise Linux CoreOS AMI ID"
       IgnitionLocation:
         default: "S3 base folder for Ignition Source"
       HostedZoneName:
         default: "Public Hosted Zone Name"
-      StudentNum:
-        default: Student Number for Lab ID
       CreateCloud9Instance:
         default: Create Cloud9 instance?
       Cloud9AutoStopInMin:
@@ -97,22 +91,11 @@ Parameters:
       - "4.3"
     Default: "3.11"
     Type: String
-  StudentNum:
-    Description: The number of which student environment to provision for the lab.
-    Default: 1
-    Type: Number
   MasterStack:
     Description: The Master Stack of which is calling this student Cloud Formation stack
       for identification.
     Default: Master
     Type: String
-  ClusterName:
-      Description: A short, representative cluster name to use for host names and other identifying names.
-      AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
-      ConstraintDescription: Cluster name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
-      MaxLength: 27
-      MinLength: 1
-      Type: String
   RhcosAmi:
       Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
       Type: AWS::EC2::Image::Id
@@ -174,8 +157,8 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-network.template.yaml'
       Parameters:
-        ClusterName: !Sub ${ClusterName}-student${StudentNum}
-        InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
+        ClusterName: !Sub ${AWS::StackName}
+        InfrastructureName: !Sub ${AWS::StackName}
         VpcId: !Ref VpcId
         SubnetId: !Ref SubnetId
         HostedZoneName: !Ref HostedZoneName
@@ -291,12 +274,12 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
       Parameters:
-        InstanceName: !Sub ${ClusterName}-student${StudentNum}-BOOT
-        InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
+        InstanceName: !Sub ${AWS::StackName}-BOOT
+        InfrastructureName: !Sub ${AWS::StackName}
         InstanceType: "i3.large"
         SubnetId: !Ref SubnetId
         RhcosAmi: !Ref RhcosAmi
-        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${ClusterName}-student${StudentNum}/bootstrap.ign
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${AWS::StackName}/bootstrap.ign
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
         ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
@@ -313,11 +296,11 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
       Parameters:
-        InstanceName: !Sub ${ClusterName}-student${StudentNum}-AIO
-        InfrastructureName: !Sub ${ClusterName}-student${StudentNum}
+        InstanceName: !Sub ${AWS::StackName}-AIO
+        InfrastructureName: !Sub ${AWS::StackName}
         InstanceType: "m4.xlarge"
         RhcosAmi: !Ref RhcosAmi
-        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${ClusterName}-student${StudentNum}/master.ign
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${AWS::StackName}/master.ign
         SubnetId: !Ref SubnetId
         MasterSecurityGroupId: !Ref MasterSecurityGroup
         RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
@@ -335,7 +318,7 @@ Resources:
     Properties:
       LoginProfile:
         Password: !Ref Cloud9UserPassword
-      UserName: !Sub ${ClusterName}-student${StudentNum}
+      UserName: !Sub ${AWS::StackName}
       ManagedPolicyArns:
        - arn:aws:iam::aws:policy/AWSCloud9EnvironmentMember
 
@@ -345,9 +328,9 @@ Resources:
     Type: AWS::Cloud9::EnvironmentEC2
     Properties:
       AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
-      Description: !Sub 'Student ${StudentNum} Cloud9 deployment'
+      Description: !Sub '${AWS::StackName} Cloud9 deployment'
       InstanceType: !Ref Cloud9InstanceType
-      Name: !Sub 'student${StudentNum}'
+      Name: !Sub ${AWS::StackName}
       OwnerArn: !GetAtt Cloud9User.Arn
       SubnetId: !Ref SubnetId
 

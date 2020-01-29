@@ -14,7 +14,7 @@ ${OC} scale --replicas=0 deployment --all -n openshift-cluster-version
 
 # Get the pod name associated with cluster-monitoring-operator deployment
 temp=`oc get pod -l app=cluster-monitoring-operator -n openshift-monitoring 2>&1`
-if [ "$temp" == "No resources found." ] ; then 
+if [ "$temp" == "No resources found." ] ; then
     echo "Monitoring already scaled down"
 else
     cmo_pod=$(${OC} get pod -l app=cluster-monitoring-operator -o jsonpath="{.items[0].metadata.name}" -n openshift-monitoring)
@@ -47,7 +47,7 @@ if ${OC} get namespace openshift-console ; then
 
     echo "Scale console download deployment from 2 to 0"
     ${OC} scale --replicas=1 deployment.apps/downloads -n openshift-console
-else 
+else
     echo "ERROR CONSOLE NOT FOUND!"
     exit=1
 fi

@@ -206,12 +206,14 @@ Mappings:
       OpenShiftInstallBinary: ""
       OpenShiftClientBinary: ""
       StudentTemplate: "aws-ocp3-student-env.template.yaml"
+
     "4.2":
       OpenShiftMirrorURL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
       OpenShiftVersionNum: "4.2.12"
       OpenShiftInstallBinary: "openshift-install"
       OpenShiftClientBinary: "openshift-client"
       StudentTemplate: "aws-ocp4-student-env.template.yaml"
+
 
 Resources:
   VPCStack:
@@ -269,46 +271,23 @@ Resources:
           - OpenShiftVersion
           - !Ref OpenShiftVersion
           - OpenShiftClientBinary
-        StudentTemplate: !FindInMap [OpenShiftVersion, !Ref OpenShiftVersion, StudentTemplate]
+        OpenShiftInstallBinary: !FindInMap
+          - OpenShiftVersion
+          - !Ref OpenShiftVersion
+          -  OpenShiftInstallBinary
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         CreateCloud9Instance: !Ref CreateCloud9Instance
-
-  IgnitionExecute:
-    Condition: OCP4
-    Type: Custom::LambdaDeployIgnition
-    Properties:
-      Function: GenerateIgnition
-      ServiceToken: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
-      IgnitionBucket: !If [OCP4, !Ref IgnitionBucket, "" ]
-      PullSecret: !Ref PullSecret
-      SSHKey: !Ref SSHKey
-      ClusterName: !Ref ClusterName
-      NumStudents: !Ref NumStudents
-      HostedZoneName: !Ref HostedZoneName
-      OpenShiftMirrorURL: !FindInMap
-        - OpenShiftVersion
-        - !Ref OpenShiftVersion
-        -  OpenShiftMirrorURL
-      OpenShiftVersion: !FindInMap
-        - OpenShiftVersion
-        - !Ref OpenShiftVersion
-        -  OpenShiftVersionNum
-      OpenShiftInstallBinary: !FindInMap
-        - OpenShiftVersion
-        - !Ref OpenShiftVersion
-        -  OpenShiftInstallBinary
+        PullSecret: !Ref PullSecret
+        SSHKey: !Ref SSHKey
 
   StudentStacksOCP4:
     Condition: OCP4
-    DependsOn: IgnitionExecute
     Type: Custom::LambdaDeployCF
     Properties:
       Function: DeployCF
       ServiceToken: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
       StackName: !Ref ClusterName
-      KeyToUpdate: "StudentNum"
-      StudentNum: !Ref NumStudents
       TemplateURL:
         Fn::Sub:
           - "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${CurStudentTemplate}"
@@ -320,7 +299,6 @@ Resources:
       MasterStack: !Sub ${AWS::StackName}
       OpenShiftVersion: !Ref OpenShiftVersion
       NumStacks: !Ref NumStudents
-      ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
       RhcosAmi: !Ref RhcosAmi
       IgnitionLocation: !If [OCP4, !Sub "s3://${IgnitionBucket}", "" ]
@@ -337,6 +315,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt LambdaStack.Outputs.DeployCFLambdaArn
       StackName: !Ref ClusterName
+      # TODO: How do we get rid of student number for OCP3?
       KeyToUpdate: "StudentNum"
       StudentNum: !Ref NumStudents
       TemplateURL:
@@ -387,10 +366,3 @@ Resources:
 Outputs:
   WorkshopWebpage:
     Value: !Sub 'https://${IgnitionBucket}.s3.amazonaws.com/workshop.html'
-#  DeleteBucketContents:
-#    Condition: CreateLambdaZipsBucket
-#    Type: Custom::DeleteBucketContents
-#    Version: '1.0'
-#    Properties:
-#      ServiceToken: !GetAtt 'FunctionStack.Outputs.DeleteBucketContentsLambdaArn'
-#      OutputBucket: !Ref 'LambdaZipsBucket'
