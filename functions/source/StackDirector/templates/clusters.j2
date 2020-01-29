@@ -1,4 +1,4 @@
-{% set OCP_VER = openshift_version.split('.')[0] | int %}
+{% set OCP_VER = cluster.openshift_version.split('.')[0] | int %}
 <!DOCTYPE html>
 <html>
 <font face="verdana,sans,arial">
@@ -333,11 +333,14 @@ $("document").ready(function(){
         </div>
 
         <div class="row">
-{% for cluster in clusters_information %}
+{% for stack in stack_arr %}
   <div class="student_logins">
     <div class="header">
-
-      <p class="studentinfo">student{{cluster["number"]}} - Click to see login details</p>
+    {% if stack.status == "complete" %}
+      <p class="studentinfo">student{{ stack.number }} - Click to see login details</p>
+    {% else %}
+      <p class="studentinfo">student{{ stack.number }} <h5>{{ stack.status }}</h5></p>
+    {% endif %}
     </div>
     <div class="content">
 To login to the AIO node use the following for SSH access:<br>
@@ -358,14 +361,14 @@ To login to the AIO node use the following for SSH access:<br>
   </tr>
   <tr>
     <td>DNS:</td>
-    <td><code>{{ cluster["ssh-url"] }}</code></td>
+    <td><code>{{ stack.ssh_url }}</code></td>
   </tr>
   <tr>
     <td>example_login</td>
     {% if OCP_VER == 4 %}
-    <td><pre><code>ssh -i ~/location_of_env_PEM core@{{ cluster["ssh-url"] }}</code></pre></td>
+    <td><pre><code>ssh -i ~/location_of_env_PEM core@{{ stack.ssh_url }}</code></pre></td>
     {% elif OCP_VER == 3 %}
-    <td><pre><code>ssh -i ~/location_of_env_PEM ec2-user@{{ cluster["ssh-url"] }}</code></pre></td>
+    <td><pre><code>ssh -i ~/location_of_env_PEM ec2-user@{{ stack.ssh_url }}</code></pre></td>
     {% endif %}
   </tr>
   <tr>
@@ -374,7 +377,7 @@ To login to the AIO node use the following for SSH access:<br>
   </tr>
   <tr>
     <td>UI link:
-    <td><a href="{{ cluster['console-url'] }}">{{ cluster['console-url'] }}</a></td>
+    <td><a href="{{ stack.console_url }}">{{ stack.console_url }}</a></td>
   </tr>
   <tr>
     <td>UI Username:
@@ -382,31 +385,30 @@ To login to the AIO node use the following for SSH access:<br>
   </tr>
   <tr>
     <td>UI Password:
-    <td><code>{{ cluster["kubeadmin-password"]}}</code></td>
+    <td><code>{{ stack.kubeadmin_password }}</code></td>
   </tr>
-  {% if cluster.cloud_9_url is defined %}
+  {% if stack.cloud_9_url is defined %}
     <tr>
     <td class="header">Cloud9 Environment info</td>
     <td class="header"></td>
   </tr>
   <tr>
     <td>Console link:
-    <td><a href="{{ cluster['cloud_9_url'] }}">{{ cluster['cloud_9_url'] }}</a></td>
+    <td><a href="{{ stack.cloud_9_url }}">{{ stack.cloud_9_url }}</a></td>
   </tr>
   <tr>
     <td>Cloud9 Username:
-    <td><code>{{ cluster['cluster_name'] }}</code></td>
+    <td><code>{{ stack.cluster_name }}</code></td>
   </tr>
   <tr>
     <td>Cloud9 Password:
-    <td><code>{{ cluster["kubeadmin-password"]}}</code></td>
+    <td><code>{{ stack.kubeadmin_password }}</code></td>
   </tr>
   {% endif %}
 </table>
 </div>
 </div>
 </div>
-
 {% endfor %}
        </div>
     </div>
