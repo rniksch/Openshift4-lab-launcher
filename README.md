@@ -44,20 +44,21 @@ taskcat test run -n
 
 ### OCP 4.x Deployment Parameters
 
-| Parameter        | Example                                 | Description                                                           |
-| ---------------- | --------------------------------------- | --------------------------------------------------------------------- |
-| OpenShiftVersion | "4.2"                                   | OpenShift version                                                     |
-| ClusterName      | "ocp42class"                            | OpenShift cluster name                                                |
-| HostedZoneName   | "openshift.awsworkshop.io"              | Route53 hosted zone name                                              |
-| NumStudents      | "20"                                    | Number of student environments to provivision                         |
-| RemoteAccessCIDR | "73.42.71.116/32"                       | Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0 |
-| PullSecret       | '{"auths":{"cloud.openshift.com": ... ' | Pull secret obtained from [cloud.redhat.com](https://cloud.redhat.com/openshift/install), it's big |
-| SSHKey           | "ssh-rsa AAAAB3NzaC1ycAAA ..."          | Public SSH key for ssh access                                         |
-| RhcosAmi         | "ami-08e10b201e19fd5e7"                 | RHCOS AMI ID                                                          |
-| AvailabilityZone | "us-west-2a"                            | Has to correspond to the region                                       |
-| PublicSubnetCIDR | "107.145.55.108/32"                     | Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0 |
-| QSS3BucketName   | "tcat-t3-test6-48ska2s"                 | S3 bucket for CloudFormation templates                                |
-| QSS3KeyPrefix    | "aws-ocp/"                              | S3 bucket path for CloudFormation templates, mainly used for taskcat  |
+| Parameter            | Example                                 | Description                                                           |
+| ---------------------| --------------------------------------- | --------------------------------------------------------------------- |
+| OpenShiftVersion     | "4.2"                                   | OpenShift version                                                     |
+| ClusterName          | "ocp42class"                            | OpenShift cluster name                                                |
+| HostedZoneName       | "openshift.awsworkshop.io"              | Route53 hosted zone name                                              |
+| NumStudents          | "20"                                    | Number of student environments to provivision                         |
+| RemoteAccessCIDR     | "73.42.71.116/32"                       | Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0 |
+| PullSecret           | '{"auths":{"cloud.openshift.com": ... ' | Pull secret obtained from [cloud.redhat.com](https://cloud.redhat.com/openshift/install), it's big |
+| SSHKey               | "ssh-rsa AAAAB3NzaC1ycAAA ..."          | Public SSH key for ssh access                                         |
+| RhcosAmi             | "ami-08e10b201e19fd5e7"                 | RHCOS AMI ID                                                          |
+| AvailabilityZone     | "us-west-2a"                            | Has to correspond to the region                                       |
+| PublicSubnetCIDR     | "107.145.55.108/32"                     | Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0 |
+| CreateCloud9Instance | "yes"                                   | Create cloud9 environment?                                            |
+| QSS3BucketName       | "tcat-t3-test6-48ska2s"                 | S3 bucket for CloudFormation templates                                |
+| QSS3KeyPrefix        | "aws-ocp/"                              | S3 bucket path for CloudFormation templates, mainly used for taskcat  |
 
 ## StackDirector Lambda
 
