@@ -27,7 +27,7 @@ There are two ways to deploy - either using [taskcat](https://github.com/aws-qui
 ClusterName: <CLUSTER NAME>
 # Lock down access to the lab to a specific CIDR,
 # defaults to 0.0.0.0/0
-RemoteAccessCIDR: "73.42.71.116/32"
+RemoteAccessCIDR: "1.2.3.4/32"
 NumStudents: "2"
 # Have to pass SSH key due to a RHCOS requirement
 SSHKey: "<PASTE YOUR PUBLIC SSH KEY HERE>"
