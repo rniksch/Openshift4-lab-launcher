@@ -50,6 +50,7 @@ taskcat test run -n
 | ClusterName      | "ocp42class"                            | OpenShift cluster name                                                |
 | HostedZoneName   | "openshift.awsworkshop.io"              | Route53 hosted zone name                                              |
 | NumStudents      | "20"                                    | Number of student environments to provivision                         |
+| RemoteAccessCIDR | "73.42.71.116/32"                       | Lock down access to the lab to a specific CIDR, defaults to 0.0.0.0/0 |
 | PullSecret       | '{"auths":{"cloud.openshift.com": ... ' | Pull secret obtained from [cloud.redhat.com](https://cloud.redhat.com/openshift/install), it's big |
 | SSHKey           | "ssh-rsa AAAAB3NzaC1ycAAA ..."          | Public SSH key for ssh access                                         |
 | RhcosAmi         | "ami-08e10b201e19fd5e7"                 | RHCOS AMI ID                                                          |
@@ -60,12 +61,28 @@ taskcat test run -n
 
 ## StackDirector Lambda
 
-To debug ignition lambda run
+This lambda is responsible for building the student stacks, installing OCP 4.x cluster, and performing post installation activities. After the stack build is initiated, the lambda runs every hour to do the health check and post installation activities. Once every cluster passes the health check, the lambda deletes the 1 hour check event and never runs again.
+
+### Logic flow
+
+* Build student stacks
+  * Download and install the openshift-install binary
+  * Generate the [ignition files](https://coreos.com/ignition/docs/latest/what-is-ignition.html) and upload to S3
+  * Generate the parameter file for the CloudFormation stacks and upload to S3
+  * Build the CloudFormation stacks
+  * Generate the workshop webpage and upload to S3
+* Post deployment tasks
+  * Run health check against each cluster
+  * Run the [openshift-4-scale-replicas](functions/source/StackDirector/bin/openshift-4-scale-replicas) script
+  * Rebuild any stacks that are failling health check
+  * Generate the workshop webpage and upload to S3
+
+### Building the lambda
+
+We use Docker to install the Python library dependencies and package the lambda into a zip.
 
 ```bash
-export PULL_SECRET=<YOUR PULL SECRET>
-export SSH_KEY=<YOUR PUBLIC SSH_KEY>
-make run_lambda
+make build_lambda
 ```
 
 ## Troubleshooting

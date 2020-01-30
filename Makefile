@@ -13,7 +13,7 @@ help:
 	@echo   "make test  : executes taskcat"
 
 .ONESHELL:
-test: lint build_lambda_package
+test: lint build_lambda
 	taskcat test run -n
 
 lint:
@@ -24,7 +24,7 @@ build_docker:
 	docker build -t $(DOCKER_REGISTRY)/$(IMAGE):$(TAG) .
 
 # Copies the lambda zip from the docker container to functions/packages
-build_lambda_package:	build_docker
+build_lambda:	build_docker
 	docker run -it --rm \
 	-v "$(shell pwd)/functions:/dest_functions" \
 	$(DOCKER_REGISTRY)/$(IMAGE):$(TAG) \
