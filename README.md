@@ -110,9 +110,10 @@ We have seen issues running taskcat under the following conditions, please verif
   * You Account has the correct IAM Permissions to execute in the region.
   * Your default region and test region match.
 
-Then you need to be above the repository directory and execute, with make: `make test`. Without make:
-`taskcat -c aws-ocp/ci/config.yml`. Notice it is outside the actual repository.
+#### Orphaned S3 Buckets
 
-When running a lot of tests, the S3 buckets can begin to add up. To clean up all Taskcat buckets you can run the following:
-`aws s3 ls | grep taskcat | cut -d ' ' -f 3 | xargs -I {} aws s3 rb s3://{} --force`
+To clean up all Taskcat buckets you can run the following at your own risk.
 
+```bash
+aws s3 ls | grep tcat | cut -d ' ' -f 3 | xargs -I {} aws s3 rb s3://{} --force
+```
