@@ -63,9 +63,10 @@ Parameters:
       forward slash (/).
     Type: String
   CreateCloud9Instance:
-    Description: Leave blank if no
-    Default: ""
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
     Type: String
+    AllowedValues: ["yes","no"]
   LogLevel:
     Description: Lambda log level
     Default: "DEBUG"

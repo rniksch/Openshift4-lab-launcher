@@ -154,9 +154,10 @@ Parameters:
     Type: String
     NoEcho: True
   CreateCloud9Instance:
-    Description: Otherwise leave blank
-    Default: ""
-    Type: String
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
+    Type: CommaDelimitedList
+    AllowedValues: ["yes","no"]
   Cloud9AutoStopInMin:
     Description: The time the Cloud9 instance is automatically stopped after no use.
     Default: 30
@@ -277,7 +278,7 @@ Resources:
           -  OpenShiftInstallBinary
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
-        CreateCloud9Instance: !Ref CreateCloud9Instance
+        CreateCloud9Instance: !Join ["", !Ref CreateCloud9Instance]
         PullSecret: !Ref PullSecret
         SSHKey: !Ref SSHKey
 
@@ -302,7 +303,7 @@ Resources:
       HostedZoneName: !Ref HostedZoneName
       RhcosAmi: !Ref RhcosAmi
       IgnitionLocation: !If [OCP4, !Sub "s3://${IgnitionBucket}", "" ]
-      CreateCloud9Instance: !Ref CreateCloud9Instance
+      CreateCloud9Instance: !Join ["", !Ref CreateCloud9Instance]
       Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
       Cloud9InstanceType: !Ref Cloud9InstanceType
       Cloud9UserPassword: !Ref Cloud9UserPassword
