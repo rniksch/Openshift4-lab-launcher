@@ -243,7 +243,7 @@ $("document").ready(function(){
 
                 <a href="https://github.com/openshift/origin/tree/release-4.2/examples" class="btn btn-ghost">View OCP Examples on GitHub</a><br><br>
 
-              <h1>Workshop Name: {{cluster_name}}</h1>
+              <h1>Workshop Name: {{cluster.cluster_name}}</h1>
 
             </div>
         </div>
@@ -397,8 +397,12 @@ To login to the AIO node use the following for SSH access:<br>
     <td><a href="{{ stack.cloud_9_url }}">{{ stack.cloud_9_url }}</a></td>
   </tr>
   <tr>
+    <td>AWS Account ID:
+    <td><code>{{ stack.aws_account_id }}</code></td>
+  </tr>
+  <tr>
     <td>Cloud9 Username:
-    <td><code>{{ stack.cluster_name }}</code></td>
+    <td><code>{{ stack.name }}</code></td>
   </tr>
   <tr>
     <td>Cloud9 Password:

@@ -62,6 +62,12 @@ def parse_properties(properties):
             cf_params["Parameters"].append(temp)
     return cf_params
 
+def decide_cloud9(cloud9_yes_no):
+    if cloud9_yes_no == "yes":
+        return True
+    elif cloud9_yes_no == "no":
+        return False
+
 def set_cloud9_password(cf_params, student_cluster_name, s3_bucket):
     for param in cf_params["Parameters"]:
         if param["ParameterKey"] == "Cloud9UserPassword":
@@ -107,6 +113,8 @@ def build_stack_arr(cluster_name, number_of_students, hosted_zone_name, create_c
             stack_dict["kubeadmin_password"] = get_kubeadmin_pass(s3_bucket, student_cluster_name)
         if create_cloud9_instance:
             stack_dict["cloud_9_url"] = "https://console.aws.amazon.com/cloud9"
+            # Get Account ID to print out on the workshop webpage
+            stack_dict["aws_account_id"] = boto3.client('sts').get_caller_identity().get('Account')
         stack_arr.append(stack_dict)
     log.debug("STACK DICTIONARY: {}".format(stack_arr))
     return stack_arr
@@ -384,7 +392,7 @@ def rebuild_stacks(cluster_name, failed_clusters, s3_bucket):
 
     for student_cluster_name in failed_clusters:
         log.info("Attempting to rebuild stack {}...".format(student_cluster_name))
-        delete_stack(student_cluster_name) 
+        delete_stack(student_cluster_name)
     for student_cluster_name in failed_clusters:
         cf_params_json = os.path.join(student_cluster_name, "cf_params.json")
         local_cf_params_json = os.path.join("/tmp", student_cluster_name + "-cf_params.json")
@@ -394,6 +402,7 @@ def rebuild_stacks(cluster_name, failed_clusters, s3_bucket):
 
 def generate_webtemplate(s3_bucket, cluster_data, stack_arr):
     try:
+        log.debug("Generating workshop webpage")
         j2Env = jinja2.Environment(loader = jinja2.FileSystemLoader("./templates"))
         template = j2Env.get_template("clusters.j2")
         rendered_text = template.render(cluster=cluster_data, stack_arr=stack_arr)
@@ -416,7 +425,7 @@ def handler(event, context):
     openshift_version = os.getenv('OpenShiftVersion')
     openshift_client_binary = os.getenv('OpenShiftClientBinary')
     openshift_install_binary = os.getenv('OpenShiftInstallBinary')
-    create_cloud9_instance = os.getenv("CreateCloud9Instance")
+    create_cloud9_instance = decide_cloud9(os.getenv("CreateCloud9Instance"))
     file_extension = '.tar.gz'
     cluster_data = {"cluster_name": cluster_name,
                     "openshift_version": openshift_version,
@@ -451,7 +460,7 @@ def handler(event, context):
                     waiter_array.append({
                         "stack_name": student_cluster_name,
                         "stack_state": wait_for_state })
-                # TODO: If the stack is in state other than 'DELETE_IN_PROGRESS' then the lambda will timeout waiting on 
+                # TODO: If the stack is in state other than 'DELETE_IN_PROGRESS' then the lambda will timeout waiting on
                 # 'stack_delete_complete' state
                 wait_for_stack_state(waiter_array)
             elif event['RequestType'] == 'Update':

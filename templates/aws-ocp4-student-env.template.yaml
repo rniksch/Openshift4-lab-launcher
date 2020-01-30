@@ -108,9 +108,10 @@ Parameters:
       Default: "example.com"
       Type: String
   CreateCloud9Instance:
-    Description: Otherwise leave blank
-    Default: ""
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
     Type: String
+    AllowedValues: ["yes","no"]
   Cloud9AutoStopInMin:
     Description: The time the Cloud9 instance is automatically stopped after no use.
     Default: 30
@@ -148,8 +149,7 @@ Parameters:
     Type: String
 
 Conditions:
-    CreateCloud9Instance:
-      !Not [!Equals [!Ref CreateCloud9Instance, '']]
+    CreateCloud9Instance: !Equals [!Ref CreateCloud9Instance, 'yes']
 
 Resources:
   NetworkStack:
