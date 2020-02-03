@@ -6,14 +6,13 @@ Metadata:
     - Label:
         default: "Cluster Information"
       Parameters:
-      - InfrastructureName
-      - StudentNum
       - PullSecretUser
       - PullSecret
       - SSHKey
       - SubManagerUser
       - SubManagerPassword
       - AnsibleVaultPass
+      - IgnitionBucketName
     - Label:
         default: "Network Configuration"
       Parameters:
@@ -22,19 +21,22 @@ Metadata:
       - SubnetId
       - HostedZoneName
     - Label:
+        default: Cloud9 information
+      Parameters:
+        - CreateCloud9Instance
+        - Cloud9AutoStopInMin
+        - Cloud9InstanceType
+        - Cloud9UserPassword
+    - Label:
         default: AWS Quick Start Configuration
       Parameters:
         - QSS3BucketName
         - QSS3KeyPrefix
     ParameterLabels:
-      InfrastructureName:
-        default: "Infrastructure name"
-      StudentNum:
-        default: "Student number"
       PullSecretUser:
         default: OCP service account for 3.11 container repo
       PullSecret:
-        default: OCP pull secret  
+        default: OCP pull secret
       SSHKey:
         default: Public ssh key
       SubManagerUser:
@@ -43,6 +45,8 @@ Metadata:
         default: Subscription manager password
       AnsibleVaultPass:
         default: Ansible Vault password
+      IgnitionBucketName:
+        default: S3 bucket for complete and ignitions
       VpcId:
         default: "VPC ID"
       RemoteAccessCIDR:
@@ -51,23 +55,20 @@ Metadata:
         default: "Public Subnet ID"
       HostedZoneName:
         default: "Public Hosted Zone Name"
+      CreateCloud9Instance:
+        default: Create Cloud9 instance?
+      Cloud9AutoStopInMin:
+        default: Cloud9 automatic stop time in minutes
+      Cloud9InstanceType:
+        default: Cloud9 instance type
+      Cloud9UserPassword:
+        default: Cloud9 user password
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
 
 Parameters:
-  InfrastructureName:
-    Description: A combination of ClusterName and student number
-    AllowedPattern: ^([a-z][a-z0-9\-]{0,20})$
-    ConstraintDescription: Cluster name must be alphanumeric, start with a letter, all lowercase, and have a maximum of 12 characters.
-    MaxLength: 20
-    MinLength: 1
-    Type: String
-  StudentNum:
-    Description: The number of which student environment to provision for the lab.
-    Default: 1
-    Type: Number
   PullSecretUser:
     Description: The username for pull Secret Service Account.
     Default: ""
@@ -82,11 +83,11 @@ Parameters:
     Default: ""
     Type: String
   SubManagerUser:
-    Description: The username for RHEL subscription. 
+    Description: The username for RHEL subscription.
     Default: ""
     Type: String
   SubManagerPassword:
-    Description: The password for RHEL subscription. 
+    Description: The password for RHEL subscription.
     Default: ""
     Type: String
     NoEcho: True
@@ -95,6 +96,10 @@ Parameters:
     Default: "ocp-aws-3-11"
     Type: String
     NoEcho: True
+  IgnitionBucketName:
+    Default: my-s3-bucket
+    Description: Bucket Name where the IgnitionCondfig/Complete flags and files should be placed
+    Type: String
   VpcId:
     Description: The VPC-scoped resources will belong to this VPC.
     Type: AWS::EC2::VPC::Id
@@ -111,6 +116,27 @@ Parameters:
     Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
     Default: "example.com"
     Type: String
+  CreateCloud9Instance:
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
+    Type: String
+    AllowedValues: ["yes","no"]
+  Cloud9AutoStopInMin:
+    Description: The time the Cloud9 instance is automatically stopped after no use.
+    Default: 30
+    Type: Number
+  Cloud9InstanceType:
+    Description: Instance size of the Cloud9 instance for the student
+    AllowedPattern: ^[a-z][1-9][.][a-z0-9]+$
+    MinLength: '5'
+    MaxLength: '20'
+    Default: "t2.micro"
+    Type: String
+  Cloud9UserPassword:
+    Description: The password used to assign to the Cloud9 user
+    Default: ""
+    Type: String
+    NoEcho: True
   QSS3BucketName:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -132,10 +158,41 @@ Parameters:
     Type: String
 Mappings:
   AWSAMIRegionMap:
-    us-west-2: 
-      RHEL: "ami-078a6a18fb73909b2"
-    us-east-2: 
-      RHEL: "ami-0cf433f9a817f63d3"
+    us-east-2:
+      RHEL: ami-0cf433f9a817f63d3
+    us-east-1:
+      RHEL: ami-029c0fbe456d58bd1
+    us-west-2:
+      RHEL: ami-078a6a18fb73909b2
+    us-west-1:
+      RHEL: ami-07d8d14365439bc6e
+    eu-west-3:
+      RHEL: ami-018c55e9d34f949e9
+    eu-west-2:
+      RHEL: ami-0d8f9df7aa93d806e
+    eu-west-1:
+      RHEL: ami-065ec1e661d619058
+    eu-central-1:
+      RHEL: ami-06220be3176081cf0
+    eu-north-1:
+      RHEL: ami-a4fe74da
+    ap-northeast-2:
+      RHEL: ami-0708fd0ae9a663e02
+    ap-northeast-1:
+      RHEL: ami-0be4c0b05bbeb2afd
+    ap-southeast-2:
+      RHEL: ami-01448715c06d2edb5
+    ap-southeast-1:
+      RHEL: ami-02079c0159aade6b4
+    ca-central-1:
+      RHEL: ami-05508913d3360e9af
+    ap-south-1:
+      RHEL: ami-003b12a9a1ee83922
+    sa-east-1:
+      RHEL: ami-0102667d2046392a0
+
+Conditions:
+  CreateCloud9Instance: !Equals [!Ref CreateCloud9Instance, 'yes']
 
 Resources:
   OCP311IAMRole:
@@ -152,7 +209,7 @@ Resources:
           - "sts:AssumeRole"
       Path: "/"
       Policies:
-      - PolicyName: !Join ["-", [!Ref InfrastructureName, "OCP311", "policy"]]
+      - PolicyName: !Join ["-", [!Sub "${AWS::StackName}", "OCP311", "policy"]]
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -166,7 +223,7 @@ Resources:
             Action: "ec2:DetachVolume"
             Resource: "*"
           - Effect: "Allow"
-            Action: 
+            Action:
               - "s3:GetObject"
               - "s3:ListObject"
               - "s3:ListBucket"
@@ -175,6 +232,14 @@ Resources:
               - "route53:ChangeResourceRecordSets"
               - "route53:GetChange"
             Resource: "*"
+          - Effect: Allow
+            Action:
+              - "s3:PutObject"
+              - "s3:PutObjectAcl"
+              - "S3:DeleteObject"
+            Resource:
+              - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
+              - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
 
   OCP311InstanceProfile:
     Type: "AWS::IAM::InstanceProfile"
@@ -220,26 +285,36 @@ Resources:
       IpProtocol: "-1"
       CidrIp: !Sub "${OCP311Instance.PublicIp}/32"
 
-  AppsOCP311PublicRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Sub '${HostedZoneName}.'
-      Name: !Sub "${InfrastructureName}.${HostedZoneName}"
-      ResourceRecords:
-      - !GetAtt OCP311Instance.PublicIp
-      TTL: "60"
-      Type: A
-    
   OCP311PublicRecord:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: !Sub '${HostedZoneName}.'
-      Name: !Sub "*.apps.${InfrastructureName}.${HostedZoneName}"
+      Name: !Sub "${AWS::StackName}.${HostedZoneName}"
       ResourceRecords:
       - !GetAtt OCP311Instance.PublicIp
       TTL: "60"
       Type: A
-      
+
+  AppsOCP311PublicRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Sub "*.apps.${AWS::StackName}.${HostedZoneName}"
+      ResourceRecords:
+      - !GetAtt OCP311Instance.PublicIp
+      TTL: "60"
+      Type: A
+
+  SSHOCP311PublicRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Sub "ssh.${AWS::StackName}.${HostedZoneName}"
+      ResourceRecords:
+      - !GetAtt OCP311Instance.PublicIp
+      TTL: "60"
+      Type: A
+
   OCP311Instance:
     Type: AWS::EC2::Instance
     Metadata:
@@ -257,10 +332,9 @@ Resources:
                     vars:
                       ocp_3_11_init_rhel_subscription_username: ${SubManagerUser}
                       ocp_3_11_init_rhel_subscription_password: ${SubManagerPassword}
-                      ocp_3_11_init_rhel_registry_username: ${PullSecretUser} 
+                      ocp_3_11_init_rhel_registry_username: ${PullSecretUser}
                       ocp_3_11_init_rhel_registry_pull_secret: ${PullSecret}
-                      ocp_3_11_init_student_dns: ${InfrastructureName}.${HostedZoneName}
-                      ocp_3_11_init_student_number: ${StudentNum}
+                      ocp_3_11_init_student_dns: ${AWS::StackName}.${HostedZoneName}
               mode: "0400"
             /root/.vault_pass.txt:
               content: !Sub |
@@ -286,7 +360,7 @@ Resources:
           - !Ref AWS::Region
           - RHEL
       IamInstanceProfile: !Ref OCP311InstanceProfile
-      InstanceType: "i3.large" # Change this
+      InstanceType: "i3.large"
       NetworkInterfaces:
       - AssociatePublicIpAddress: True
         DeviceIndex: "0"
@@ -297,6 +371,30 @@ Resources:
           'Fn::Sub':
             - >
               #!/bin/bash -x
+
+              #CFN Functions
+
+              function cfn_fail
+
+              {
+
+              cfn-signal -e 1 --stack ${AWS::StackName} --region ${AWS::Region}
+              --resource OCP311Instance
+
+              exit 1
+
+              }
+
+              function cfn_success
+
+              {
+
+              cfn-signal -e 0 --stack ${AWS::StackName} --region ${AWS::Region}
+              --resource OCP311Instance
+
+              exit 0
+
+              }
 
               S3URI=https://${QSS3BucketName}.${S3Region}.amazonaws.com/${QSS3KeyPrefix}
 
@@ -324,7 +422,7 @@ Resources:
 
               qs_aws-cfn-bootstrap || qs_err
 
-              hostnamectl set-hostname --static ${InfrastructureName}.${HostedZoneName} &> /var/log/hostname_update.log || qa_err "Hostname change failed"
+              hostnamectl set-hostname --static ${AWS::StackName}.${HostedZoneName} &> /var/log/hostname_update.log || qa_err "Hostname change failed"
 
               pip install virtualenv &> /var/log/userdata.virtualenv_install.log || qs_err " virtualenv install failed "
 
@@ -333,6 +431,8 @@ Resources:
               source ~/venv/bin/activate &> /var/log/userdata.activate_venv.log || qs_err " activate venv failed "
 
               pip install awscli &> /var/log/userdata.awscli_install.log || qs_err " awscli install failed "
+
+              pip install boto3 &> /var/log/userdata.boto3_install.log
 
               pip install ansible &> /var/log/userdata.ansible_install.log || qs_err " ansible install failed "
 
@@ -348,6 +448,12 @@ Resources:
               OCP311Instance --configsets ocp_3_11_install
               --region ${AWS::Region} || cfn_fail
 
+              echo "ocpadmin" > /tmp/kubeadmin-password
+
+              ansible localhost -m "aws_s3" -a "bucket=${IgnitionBucketName}  object=/${AWS::StackName}/auth/kubeadmin-password mode=put src=/tmp/kubeadmin-password permission=authenticated-read" &> /var/log/ansible_s3_upload.log || qs_err " ansible S3 upload failed "
+
+              rm -f /tmp/kubeadmin-password
+
               export ANSIBLE_VAULT_PASSWORD_FILE="/root/.vault_pass.txt"
 
               ansible-playbook /root/.ocp_ansible/ocp-3-11-install.yml &> /var/log/ansible_3_11_prep.log || qs_err " ansible execution failed "
@@ -356,16 +462,52 @@ Resources:
 
               ansible-playbook -i /root/inventory_aio /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml &> /var/log/ansible_3_11_install.log || qs_err " ansible OCP execution failed "
 
+              RETURN=$?
+
+              if [ $RETURN -eq 0 ]; then
+
+              echo "success" > /tmp/complete;
+
+              ansible localhost -m "aws_s3" -a "bucket=${IgnitionBucketName}  object=/${AWS::StackName}/completed mode=put src=/tmp/complete permission=authenticated-read" &> /var/log/ansible_s3_upload_complete.log || qs_err " ansible S3 upload failed "
+
+              ansible localhost -m "aws_s3" -a "bucket=${IgnitionBucketName}  object=/${AWS::StackName}/building mode=delobj" &> /var/log/ansible_s3_cleanup.log || qs_err " ansible S3 cleanup failed "
+
+              else
+
+              echo "failed" > /tmp/complete;
+
+              fi
+
               rm -rf /root/.secureit.sh
 
-              cat /home/ec2-user/.ssh/authorized_keys 
+              cat /home/ec2-user/.ssh/authorized_keys
 
-              [ $(qs_status) == 0 ]
+              [ $(qs_status) == 0 ] && cfn_success || cfn_fail
             - S3Region: s3
       Tags:
       - Key: Name
-        Value: !Sub ${AWS::StackName}-${InfrastructureName}
+        Value: !Sub ${AWS::StackName}
+  Cloud9User:
+    Condition: CreateCloud9Instance
+    Type: AWS::IAM::User
+    Properties:
+      LoginProfile:
+        Password: !Ref Cloud9UserPassword
+      UserName: !Sub ${AWS::StackName}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCloud9EnvironmentMember
 
+  Cloud9Instance:
+    Condition: CreateCloud9Instance
+    DependsOn: OCP311Instance
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
+      Description: !Sub '${AWS::StackName} Cloud9 deployment'
+      InstanceType: !Ref Cloud9InstanceType
+      Name: !Sub ${AWS::StackName}
+      OwnerArn: !GetAtt Cloud9User.Arn
+      SubnetId: !Ref SubnetId
 
 Outputs:
   OCP311InstanceId:

@@ -10,12 +10,6 @@ Parameters:
   ClusterName:
     Description: ClusterName base for the overall deployment, needed for the ValidateEvent that is created.
     Type: String
-  OCP4:
-    Description: OCP4 or not
-    AllowedValues:
-      - "True"
-      - "False"
-    Type: String
   QSS3BucketName:
     Description: 'S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
@@ -35,8 +29,7 @@ Parameters:
       uppercase letters, hyphens (-), dots(.) and forward slash (/).
     Default: aws-ocp/
     Type: String
-Conditions:
-    OCP4:  !Equals [!Ref 'OCP4', 'True']
+
 Resources:
   StackDirectorRole:
     Type: AWS::IAM::Role

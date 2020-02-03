@@ -144,6 +144,7 @@ Parameters:
   RhcosAmi:
     Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
+    default: "ami-08e10b201e19fd5e7"
   SubManagerUser:
     Description: The username for RHEL subscription. NOTE - not needed for 4.X installs.
     Default: ""
@@ -203,7 +204,7 @@ Mappings:
     # TODO: Can we make this smarter in the lambda to download the version with less inputs
     "3.11":
       OpenShiftMirrorURL: ""
-      OpenShiftVersionNum: ""
+      OpenShiftVersionNum: "3"
       OpenShiftInstallBinary: ""
       OpenShiftClientBinary: ""
       StudentTemplate: "aws-ocp3-student-env.template.yaml"
@@ -230,7 +231,6 @@ Resources:
           Ref: VPCCIDR
 
   IgnitionBucket:
-    Condition: OCP4
     Type: AWS::S3::Bucket
 
   LambdaZipsBucket:
@@ -241,9 +241,8 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-iam.template.yaml'
       Parameters:
-        OCP4: !If [ OCP4, "True", "False" ]
         LambdaZipsBucketName: !Ref LambdaZipsBucket
-        IgnitionBucketName: !If [ OCP4, !Ref IgnitionBucket, "" ]
+        IgnitionBucketName: !Ref IgnitionBucket
         ClusterName: !Ref ClusterName
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -256,7 +255,7 @@ Resources:
         LambdaZipsBucketName: !Ref LambdaZipsBucket
         CopyZipsRoleArn: !GetAtt IamStack.Outputs.CopyZipsRoleArn
         StackDirectorRoleArn: !GetAtt IamStack.Outputs.StackDirectorRoleArn
-        AuthBucket: !If [ OCP4, !Ref IgnitionBucket, "" ]
+        AuthBucket: !Ref IgnitionBucket
         ClusterName: !Ref ClusterName
         NumStudents: !Ref NumStudents
         HostedZoneName: !Ref HostedZoneName
@@ -314,11 +313,8 @@ Resources:
     Condition: OCP3
     Type: Custom::LambdaDeployCF
     Properties:
-      ServiceToken: !GetAtt LambdaStack.Outputs.DeployCFLambdaArn
+      ServiceToken: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
       StackName: !Ref ClusterName
-      # TODO: How do we get rid of student number for OCP3?
-      KeyToUpdate: "StudentNum"
-      StudentNum: !Ref NumStudents
       TemplateURL:
         Fn::Sub:
           - "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/${CurStudentTemplate}"
@@ -327,24 +323,22 @@ Resources:
       SubnetId: !GetAtt 'VPCStack.Outputs.PublicSubnetID'
       RemoteAccessCIDR: !Ref RemoteAccessCIDR
       NumStacks: !Ref NumStudents
-      ClusterName: !Ref ClusterName
       HostedZoneName: !Ref HostedZoneName
       PullSecretUser: !Ref PullSecretUser
       PullSecret: !Ref PullSecret
       SSHKey: !Ref SSHKey
+      IgnitionBucketName: !Ref IgnitionBucket
       SubManagerUser: !Ref SubManagerUser
       SubManagerPassword: !Ref SubManagerPassword
+      CreateCloud9Instance: !Join ["", !Ref CreateCloud9Instance]
+      Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
+      Cloud9InstanceType: !Ref Cloud9InstanceType
+      Cloud9UserPassword: !Ref Cloud9UserPassword
       QSS3BucketName: !Ref QSS3BucketName
       QSS3KeyPrefix: !Ref QSS3KeyPrefix
-    #  HostedZoneName: !Ref HostedZoneName
-    #  RhcosAmi: !Ref RhcosAmi
-    #  IgnitionLocation: !If [OCP4, !Sub "s3://${IgnitionBucket}", "" ]
-    #  Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
-    #  Cloud9InstanceType: !Ref Cloud9InstanceType
 
 
   ValidateEvent:
-    Condition: OCP4
     Type: AWS::Events::Rule
     Properties:
       Name: !Sub ${ClusterName}-ValidateEvent
@@ -354,7 +348,6 @@ Resources:
           Id: !Sub ${ClusterName}-ValidateDeploymentLambda
 
   LambdaInvokePermission:
-    Condition: OCP4
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt LambdaStack.Outputs.StackDirectorLambdaArn
