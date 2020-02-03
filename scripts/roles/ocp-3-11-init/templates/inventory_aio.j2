@@ -71,8 +71,8 @@ openshift_enable_unsupported_configurations=true
 
 # NOTE: Need credentials from: https://access.redhat.com/terms-based-registry/
 oreg_url=registry.redhat.io/openshift3/ose-${component}:${version}
-oreg_auth_user={{ ocp_3_11_init_rhel_registry_username }}
-oreg_auth_password={{ ocp_3_11_init_rhel_registry_pull_secret }}
+oreg_auth_user="{{ ocp_3_11_init_rhel_registry_username }}"
+oreg_auth_password="{{ ocp_3_11_init_rhel_registry_pull_secret }}"
 
 # For Operator Framework Images
 openshift_additional_registry_credentials=[{'host':'registry.connect.redhat.com','user':'{{ ocp_3_11_init_rhel_registry_username }}','password':'{{ ocp_3_11_init_rhel_registry_pull_secret }}','test_image':'mongodb/enterprise-operator:0.3.2'}]
@@ -103,8 +103,10 @@ openshift_master_default_subdomain=apps.{{ ocp_3_11_init_student_dns }}
 ### OpenShift Network Vars
 ###########################################################################
 # Defaults
-osm_cluster_network_cidr=10.{{ ocp_3_11_init_student_number }}.0.0/16
-openshift_portal_net=172.{{ ocp_3_11_init_student_number }}.0.0/16
+{% set cidr_dig = ocp_3_11_init_student_number | int %}
+{% set cidr_dig = cidr_dig + 1 %}
+osm_cluster_network_cidr=10.{{ cidr_dig }}.0.0/16
+openshift_portal_net=172.{{ cidr_dig }}.0.0/16
 
 os_sdn_network_plugin_name='redhat/openshift-ovs-networkpolicy'
 openshift_node_groups=[{'name': 'configmap1', 'labels': ['node-role.kubernetes.io/master=true', 'node-role.kubernetes.io/infra=true', 'node-role.kubernetes.io/compute=true'], 'edits': [{ 'key': 'nodeIP','value': '{{ hostvars[inventory_hostname]["ansible_default_ipv4"]["address"] }}'}]}]

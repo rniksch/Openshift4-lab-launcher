@@ -1,6 +1,10 @@
 ---
 # tasks file for ocp-3-11-init
 
+- name: Set the studentNumber
+  set_fact:
+    ocp_3_11_init_student_number: "{{ ocp_3_11_init_student_dns.split('.')[0].split('student')[1] }}"
+
 - name: Configure Subscriptions and Updates
   include: repo_update.yml
 

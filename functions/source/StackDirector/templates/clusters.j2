@@ -381,7 +381,11 @@ To login to the AIO node use the following for SSH access:<br>
   </tr>
   <tr>
     <td>UI Username:
+    {% if OCP_VER == 4 %}
     <td><code>kubeadmin</code></td>
+    {% elif OCP_VER == 3 %}
+    <td><code>ocpadmin</code></td>
+    {% endif %}
   </tr>
   <tr>
     <td>UI Password:

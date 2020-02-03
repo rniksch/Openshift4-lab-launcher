@@ -77,8 +77,12 @@ def get_kubeadmin_pass(s3_bucket, student_cluster_name):
     kubeadmin_file = os.path.join(student_cluster_name, "auth/kubeadmin-password")
     local_kubeadmin_file = os.path.join("/tmp", student_cluster_name + "-admin")
     get_from_s3(s3_bucket, source=kubeadmin_file, destination=local_kubeadmin_file)
-    cur_file = open(local_kubeadmin_file, "r")
-    return cur_file.read()
+    try:
+        cur_file = open(local_kubeadmin_file, "r")
+        return cur_file.read()
+    except Exception as e:
+        log.info("Unable to open and read file")
+        return "not found"
 
 def save_cfparams_json(cf_params, s3_bucket, student_cluster_name, create_cloud9_instance):
     cf_params["StackName"] = student_cluster_name
@@ -91,7 +95,7 @@ def save_cfparams_json(cf_params, s3_bucket, student_cluster_name, create_cloud9
                    content_type="text/json",
                    acl="private")
 
-def build_stack_arr(cluster_name, number_of_students, hosted_zone_name, create_cloud9_instance, s3_bucket):
+def build_stack_arr(cluster_name, number_of_students, hosted_zone_name, create_cloud9_instance, s3_bucket, openshift_version):
     stack_arr = []
     for i in range(number_of_students):
         student_cluster_name = cluster_name + '-' + 'student' + str(i)
@@ -100,11 +104,14 @@ def build_stack_arr(cluster_name, number_of_students, hosted_zone_name, create_c
         fqdn_student_cluster_name = student_cluster_name + "." + hosted_zone_name
         stack_dict = {"name": student_cluster_name,
                     "number": i,
-                    "console_url": "https://console-openshift-console.apps.{}.{}".format(student_cluster_name, hosted_zone_name),
-                    "api_url": "https://api.{}:6443".format(fqdn_student_cluster_name),
                     "ssh_url": "ssh.{}.{}".format(student_cluster_name, hosted_zone_name),
                     "status": ""
         }
+        if openshift_version != "3":
+            stack_dict["console_url"] = "https://console-openshift-console.apps.{}.{}".format(student_cluster_name, hosted_zone_name)
+            stack_dict["api_url"] = "https://api.{}:6443".format(fqdn_student_cluster_name)
+        else:
+            stack_dict["console_url"] = "https://{}.{}:8443/console".format(student_cluster_name, hosted_zone_name)
         if check_file_s3(s3_bucket=s3_bucket, key=building_key):
             stack_dict["status"] = "building"
             stack_dict["kubeadmin_password"] = get_kubeadmin_pass(s3_bucket, student_cluster_name)
@@ -436,7 +443,8 @@ def handler(event, context):
                                     number_of_students,
                                     hosted_zone_name,
                                     create_cloud9_instance,
-                                    s3_bucket)
+                                    s3_bucket,
+                                    openshift_version)
         generate_webtemplate(s3_bucket, cluster_data, stack_arr)
     if sys.platform == 'darwin':
         openshift_install_os = '-mac-'
@@ -472,15 +480,16 @@ def handler(event, context):
                 log.info("Delete and Update not detected, proceeding with Create")
                 pull_secret = os.environ.get('PullSecret')
                 ssh_key = os.environ.get('SSHKey')
-                openshift_install_package = openshift_install_binary \
-                                            + openshift_install_os \
-                                            + openshift_version \
-                                            + file_extension
-                log.info("Generating OCP installation files for cluster " + cluster_name)
-                install_dependencies(openshift_client_mirror_url,
-                                     openshift_install_package,
-                                     openshift_install_binary,
-                                     download_path)
+                if openshift_version != "3":
+                    openshift_install_package = openshift_install_binary \
+                                                + openshift_install_os \
+                                                + openshift_version \
+                                                + file_extension
+                    log.info("Generating OCP installation files for cluster " + cluster_name)
+                    install_dependencies(openshift_client_mirror_url,
+                                         openshift_install_package,
+                                         openshift_install_binary,
+                                         download_path)
                 for stack in stack_arr:
                     # The only status is either building or complete, skip if either is found
                     if stack["status"]:
@@ -490,10 +499,11 @@ def handler(event, context):
                     student_cluster_name = stack["name"]
                     building_key = os.path.join(student_cluster_name, "building")
                     local_student_folder = download_path + student_cluster_name
-                    generate_ignition_files(openshift_install_binary, download_path,
-                                            student_cluster_name, ssh_key, pull_secret,
-                                            hosted_zone_name, student_num=stack["number"])
-                    upload_ignition_files_to_s3(local_student_folder, s3_bucket)
+                    if openshift_version != "3":
+                        generate_ignition_files(openshift_install_binary, download_path,
+                                                student_cluster_name, ssh_key, pull_secret,
+                                                hosted_zone_name, student_num=stack["number"])
+                        upload_ignition_files_to_s3(local_student_folder, s3_bucket)
                     save_cfparams_json(cf_params=cf_params,
                                        s3_bucket=s3_bucket,
                                        student_cluster_name=student_cluster_name,
@@ -515,26 +525,34 @@ def handler(event, context):
     # We are in the Validate openshift clusters event
     else:
         try:
-            install_dependencies(openshift_client_mirror_url,
-                                 openshift_client_package,
-                                 openshift_client_binary,
-                                 download_path)
+            if openshift_version != "3":
+                install_dependencies(openshift_client_mirror_url,
+                                     openshift_client_package,
+                                     openshift_client_binary,
+                                     download_path)
             failed_clusters = []
             for stack in stack_arr:
                 if stack["status"] == "complete":
+                    log.debug("Stack complete {}".format(stack["name"]))
                     continue
-                if not cluster_availabe(url=stack["api_url"]):
-                    failed_clusters.append(stack["name"])
-                    continue
-                if scale_ocp_replicas(s3_bucket, stack["name"], stack["status"]):
-                    stack["status"] = "complete"
-                    continue
-                else:
-                    failed_clusters.append(stack["name"])
+                # If its OpenShift 3, add as a Failed.
+                # If it is not available,add to array and continue - Is this needed?
+                # Otherwise it is available and OCP 4 so test.
+                # If successful, continue, otherwise append to failed clusters
+                if openshift_version != "3":
+                    if not cluster_availabe(url=stack["api_url"]):
+                        failed_clusters.append(stack["name"])
+                        continue
+                    if scale_ocp_replicas(s3_bucket, stack["name"], stack["status"]):
+                        stack["status"] = "complete"
+                        continue
+                log.debug("Stack failed {}".format(stack["name"]))
+                failed_clusters.append(stack["name"])
             generate_webtemplate(s3_bucket, cluster_data, stack_arr)
             if len(failed_clusters) == 0:
                 deactivate_event(cluster_name)
             else:
+                log.debug("failed_clusters = {}".format(failed_clusters))
                 rebuild_stacks(cluster_name, failed_clusters, s3_bucket)
             log.info("Complete")
         except Exception:
