@@ -144,7 +144,7 @@ Parameters:
   RhcosAmi:
     Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
     Type: AWS::EC2::Image::Id
-    default: "ami-08e10b201e19fd5e7"
+    Default: "ami-08e10b201e19fd5e7"
   SubManagerUser:
     Description: The username for RHEL subscription. NOTE - not needed for 4.X installs.
     Default: ""
