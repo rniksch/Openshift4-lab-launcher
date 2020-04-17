@@ -1,1 +1,0 @@
-# Openshift4-lab-launcher
