@@ -1,0 +1,339 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS Red Hat OCP Lab Student deployment'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Security configuration
+        Parameters:
+          - RemoteAccessCIDR
+      - Label:
+          default: Network configuration
+        Parameters:
+          - VpcId
+          - SubnetId
+          - VPCCIDR
+          - HostedZoneName
+      - Label:
+          default: Lab information
+        Parameters:
+            - OpenShiftVersion
+            - MasterStack
+            - RhcosAmi
+            - IgnitionLocation
+      - Label:
+          default: Cloud9 information
+          Parameters:
+            - CreateCloud9Instance
+            - Cloud9AutoStopInMin
+            - Cloud9InstanceType
+            - Cloud9UserPassword
+      - Label:
+          default: AWS Quick Start Configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3KeyPrefix
+    ParameterLabels:
+      VpcId:
+        default: VPC ID
+      SubnetId:
+        default: "Subnet"
+      VPCCIDR:
+        default: VPC CIDR
+      RemoteAccessCIDR:
+        default: Remote access CIDR
+      OpenShiftVersion:
+        default: OpenShift version
+      MasterStack:
+        default: Master CloudFormation StackName
+      RhcosAmi:
+        default: "Red Hat Enterprise Linux CoreOS AMI ID"
+      IgnitionLocation:
+        default: "S3 base folder for Ignition Source"
+      HostedZoneName:
+        default: "Public Hosted Zone Name"
+      CreateCloud9Instance:
+        default: Create Cloud9 instance?
+      Cloud9AutoStopInMin:
+        default: Cloud9 automatic stop time in minutes
+      Cloud9InstanceType:
+        default: Cloud9 instance type
+      Cloud9UserPassword:
+        default: Cloud9 user password
+      QSS3BucketName:
+        default: Quick Start S3 bucket name
+      QSS3KeyPrefix:
+        default: Quick Start S3 key prefix
+Parameters:
+  VpcId:
+    Description: The VPC-scoped resources will belong to this VPC.
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Description: The subnet.
+    Type: AWS::EC2::Subnet::Id
+  VPCCIDR:
+    Description: The CIDR block for the VPC.
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/24
+    Type: String
+  RemoteAccessCIDR:
+    Description: The remote CIDR range for allowing SSH into the Cloud9 instance.
+      We recommend that you set this value to a trusted IP range.
+      For example, you might want to grant specific ranges inside your corporate network SSH access.
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    Type: String
+  OpenShiftVersion:
+    Description: The version of OpenShift to deploy for the lab.
+    AllowedValues:
+      - "3.11"
+      - "4.2"
+      - "4.3"
+    Default: "3.11"
+    Type: String
+  MasterStack:
+    Description: The Master Stack of which is calling this student Cloud Formation stack
+      for identification.
+    Default: Master
+    Type: String
+  RhcosAmi:
+      Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
+      Type: AWS::EC2::Image::Id
+  IgnitionLocation:
+    Default: s3://my-s3-bucket/myfolder
+    Description: Ignition S3 bucket and or folder location in which bootstrap.ign will be added to. Do not add a trailing /
+    Type: String
+  HostedZoneName:
+      Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+      Default: "example.com"
+      Type: String
+  CreateCloud9Instance:
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
+    Type: String
+    AllowedValues: ["yes","no"]
+  Cloud9AutoStopInMin:
+    Description: The time the Cloud9 instance is automatically stopped after no use.
+    Default: 30
+    Type: Number
+  Cloud9InstanceType:
+    Description: Instance size of the Cloud9 instance for the student
+    AllowedPattern: ^[a-z][1-9][.][a-z0-9]+$
+    MinLength: '5'
+    MaxLength: '20'
+    Default: "t2.micro"
+    Type: String
+  Cloud9UserPassword:
+    Description: The password used to assign to the Cloud9 user
+    Default: ""
+    Type: String
+    NoEcho: True
+  QSS3BucketName:
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Type: String
+  QSS3KeyPrefix:
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: aws-ocp/
+    Type: String
+
+Conditions:
+    CreateCloud9Instance: !Equals [!Ref CreateCloud9Instance, 'yes']
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-network.template.yaml'
+      Parameters:
+        ClusterName: !Sub ${AWS::StackName}
+        InfrastructureName: !Sub ${AWS::StackName}
+        VpcId: !Ref VpcId
+        SubnetId: !Ref SubnetId
+        HostedZoneName: !Ref HostedZoneName
+
+  MasterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Cluster Security Group
+      SecurityGroupIngress:
+      - IpProtocol: icmp
+        FromPort: 0
+        ToPort: 0
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        ToPort: 6443
+        FromPort: 6443
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: tcp
+        FromPort: 22623
+        ToPort: 22623
+        CidrIp: !Ref VPCCIDR
+      - IpProtocol: icmp
+        FromPort: 0
+        ToPort: 0
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        ToPort: 6443
+        FromPort: 6443
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        ToPort: 80
+        FromPort: 80
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        ToPort: 443
+        FromPort: 443
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        FromPort: 22623
+        ToPort: 22623
+        CidrIp: !Ref RemoteAccessCIDR
+      VpcId: !Ref VpcId
+
+  MasterIngressEtcd:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: etcd
+      FromPort: 2379
+      ToPort: 2380
+      IpProtocol: tcp
+
+  MasterIngressVxlan:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Vxlan packets
+      FromPort: 4789
+      ToPort: 4789
+      IpProtocol: udp
+
+  MasterIngressInternal:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Internal cluster communication
+      FromPort: 9000
+      ToPort: 9999
+      IpProtocol: tcp
+
+  MasterIngressKube:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Kubernetes kubelet, scheduler and controller manager
+      FromPort: 10250
+      ToPort: 10259
+      IpProtocol: tcp
+
+  MasterIngressIngressServices:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt MasterSecurityGroup.GroupId
+      SourceSecurityGroupId: !GetAtt MasterSecurityGroup.GroupId
+      Description: Kubernetes ingress services
+      FromPort: 30000
+      ToPort: 32767
+      IpProtocol: tcp
+
+  BootStrapStack:
+    DependsOn: NetworkStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
+      Parameters:
+        InstanceName: !Sub ${AWS::StackName}-BOOT
+        InfrastructureName: !Sub ${AWS::StackName}
+        InstanceType: "i3.large"
+        SubnetId: !Ref SubnetId
+        RhcosAmi: !Ref RhcosAmi
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${AWS::StackName}/bootstrap.ign
+        MasterSecurityGroupId: !Ref MasterSecurityGroup
+        RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
+        ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
+        ServiceTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ApiTargetGroupArn'
+        WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
+        WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
+        SSHTargetGroupArn: !GetAtt 'NetworkStack.Outputs.SSHTargetGroupArn'
+        HostedZoneName: !Ref HostedZoneName
+        ControlPlane: "no"
+
+  ControlPlaneStack:
+    DependsOn: BootStrapStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/aws-ocp-student-instance.template.yaml'
+      Parameters:
+        InstanceName: !Sub ${AWS::StackName}-AIO
+        InfrastructureName: !Sub ${AWS::StackName}
+        InstanceType: "m4.xlarge"
+        RhcosAmi: !Ref RhcosAmi
+        BootstrapIgnitionLocation: !Sub ${IgnitionLocation}/${AWS::StackName}/master.ign
+        SubnetId: !Ref SubnetId
+        MasterSecurityGroupId: !Ref MasterSecurityGroup
+        RegisterNlbIpTargetsLambdaArn: !GetAtt 'NetworkStack.Outputs.RegisterNlbIpTargetsLambda'
+        ApiTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ServiceTargetGroupArn'
+        ServiceTargetGroupArn: !GetAtt 'NetworkStack.Outputs.ApiTargetGroupArn'
+        WebTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebTargetGroupArn'
+        WebSSLTargetGroupArn: !GetAtt 'NetworkStack.Outputs.WebSSLTargetGroupArn'
+        SSHTargetGroupArn: !GetAtt 'NetworkStack.Outputs.SSHTargetGroupArn'
+        HostedZoneName: !Ref HostedZoneName
+        ControlPlane: "yes"
+
+  Cloud9User:
+    Condition: CreateCloud9Instance
+    Type: AWS::IAM::User
+    Properties:
+      LoginProfile:
+        Password: !Ref Cloud9UserPassword
+      UserName: !Sub ${AWS::StackName}
+      ManagedPolicyArns:
+       - arn:aws:iam::aws:policy/AWSCloud9EnvironmentMember
+
+  Cloud9Instance:
+    Condition: CreateCloud9Instance
+    DependsOn: ControlPlaneStack
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
+      Description: !Sub '${AWS::StackName} Cloud9 deployment'
+      InstanceType: !Ref Cloud9InstanceType
+      Name: !Sub ${AWS::StackName}
+      OwnerArn: !GetAtt Cloud9User.Arn
+      SubnetId: !Ref SubnetId
+
+Outputs:
+  OpenShiftVersion:
+    Value: !Ref OpenShiftVersion

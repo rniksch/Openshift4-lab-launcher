@@ -1,0 +1,105 @@
+project:
+  name: aws-ocp
+  owner: quickstart-eng@amazon.com
+  regions:
+    - us-west-2
+
+tests:
+#  aws-ignition-file-lambda:
+#    parameters:
+#      ProjectName: *project_name
+#      LambdaZipsBucketName: "$[taskcat_autobucket]"
+#      QSS3KeyPrefix: "aws-ocp/"
+#    template: templates/aws-ocp-generate-ignition-files-lambda.yaml
+#  aws-ocp-master-3-11-env:
+#    parameters:
+#      RemoteAccessCIDR: CHANGE-ME                    # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+#      InfrastructureName: CHANGE-ME                  # Can be overwritten in .taskcat_overrides.yml
+#      StudentNum: 1
+#      VpcId: 'vpc-00b0e35273b77ac6c'
+#      SubnetId: 'subnet-0be1a8e4507f6d953'
+#      PullSecret: CHANGE-ME
+#      PullSecretUser: CHANGE-ME
+#      SubManagerUser: CHANGE-ME
+#      SubManagerPassword: CHANGE-ME
+#      SSHKey: CHANGE-ME                              # Can be overwritten in .taskcat_overrides.yml
+#      HostedZoneName: openshift.awsworkshop.io
+#      QSS3BucketName: "$[taskcat_autobucket]"
+#      QSS3KeyPrefix: "t3-dip-440/"
+#    template: templates/aws-ocp3-student-env.template.yaml
+#    regions:
+#      - us-east-1
+#
+#  aws-ocp-master-3-11:
+#    parameters:
+#      AvailabilityZone: "$[taskcat_genaz_1]"    # Corresponds to the region
+#      RemoteAccessCIDR: CHANGE-ME               # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+#      NumStudents: "$[taskcat_random-numbers]"
+#      ClusterName: CHANGE-ME                    # Can be overwritten in .taskcat_overrides.yml
+#      OpenShiftVersion: "3.11"
+#      RhcosAmi: "ami-0cf433f9a817f63d3"         #"ami-078a6a18fb73909b2"
+#      PullSecret: CHANGE-ME
+#      PullSecretUser: CHANGE-ME
+#      SubManagerUser: CHANGE-ME
+#      SubManagerPassword: CHANGE-ME
+#      SSHKey: CHANGE-ME                         # Can be overwritten in .taskcat_overrides.yml
+#      HostedZoneName: openshift.awsworkshop.io
+#      HostedZoneId: Z3S2KL7IIXHCNP
+#      QSS3BucketName: "$[taskcat_autobucket]"
+#      QSS3KeyPrefix: "aws-ocp/"
+#    template: templates/aws-ocp-master.template.yaml
+#    regions:
+#      - us-east-2
+  aws-ocp-master-4-2:
+    parameters:
+      AvailabilityZone: "$[taskcat_genaz_1]"    # Corresponds to the region
+      RemoteAccessCIDR: CHANGE-ME               # Your `curl -4 ifconfig.io` address, overwrite in .taskcat_overrides.yml
+      NumStudents: "$[taskcat_random-numbers]"
+      ClusterName: CHANGE-ME                    # Overwrite in .taskcat_overrides.yml
+      RhcosAmi: "ami-0bc59aaa7363b805d"         #"ami-08e10b201e19fd5e7"
+      PullSecret: CHANGE-ME
+      SSHKey: CHANGE-ME                         # Overwrite in .taskcat_overrides.yml
+      HostedZoneName: CHANGE-ME                 # Overwrite in .taskcat_overrides.yml
+      QSS3BucketName: "$[taskcat_autobucket]"
+      QSS3KeyPrefix: "aws-ocp/"
+    template: templates/aws-ocp-master.template.yaml
+    regions:
+      - us-east-1
+#  aws-ocp-42-network:
+#    parameters:
+#      ClusterName: "trace3-test3"
+#      InfrastructureName: "trace3-test3"
+#      VpcId: "vpc-025937009759a4fb5"
+#      PrivateSubnetId: "subnet-0bfb13ce017f5beb9"
+#      HostedZoneName: example.com
+#    template: templates/aws-ocp-student-network.template.yaml
+#  aws-ocp-42-bootstrap:
+#    parameters:
+#      InstanceName: bootstrap
+#      BootstrapIgnitionLocation: 's3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/bootstrap.ign'
+#      InfrastructureName: 'trace3-test3'
+#      ApiTargetGroupArn: 'arn:aws:elasticloadbalancing:us-west-2:123456789101:targetgroup/tCaT-Inter-UP0VFCP8DEOV/8b655be484e01ff1'
+#      ServiceTargetGroupArn: 'arn:aws:elasticloadbalancing:us-west-2:123456789101:targetgroup/tCaT-Inter-1E6VJKPPLUX2U/e0eb1eed6158d8bb'
+#      HostedZoneName: "example.com"
+#      InstanceType: "i3.large"
+#      MasterSecurityGroupId: 'sg-0362175e830f16112'
+#      SubnetId: 'subnet-0425a1b051757676b'
+#      RegisterNlbIpTargetsLambdaArn: 'arn:aws:lambda:us-west-2:123456789101:function:tCaT-aws-ocp-aws-ocp-4-2-be60-RegisterNlbIpTargets-1HF5ORPREGFYH'
+#      RhcosAmi: 'ami-08e10b201e19fd5e7'
+#      ControlPlane: "no"
+#    template: templates/aws-ocp-student-instance.template.yaml
+#  aws-ocp-42-controlplane:
+#    parameters:
+#      InstanceName: AIO
+#      BootstrapIgnitionLocation: "s3://trace3-student1-tbpk6-image-registry-us-west-1-jyvdpuqmyltdrpv/master.ign"
+#      InfrastructureName: "trace3-test3"
+#      ApiTargetGroupArn: "arn:aws:elasticloadbalancing:us-west-2:123456789101:targetgroup/tCaT-Inter-UP0VFCP8DEOV/8b655be484e01ff1"
+#      ServiceTargetGroupArn: "arn:aws:elasticloadbalancing:us-west-2:123456789101:targetgroup/tCaT-Inter-1E6VJKPPLUX2U/e0eb1eed6158d8bb"
+#      HostedZoneName: "example.com"
+#      InstanceType: "m4.xlarge"
+#      MasterSecurityGroupId: "sg-0362175e830f16112"
+#      SubnetId: "subnet-0425a1b051757676b"
+#      RegisterNlbIpTargetsLambdaArn: "arn:aws:lambda:us-west-2:123456789101:function:tCaT-aws-ocp-aws-ocp-4-2-be60-RegisterNlbIpTargets-1HF5ORPREGFYH"
+#      RhcosAmi: "ami-08e10b201e19fd5e7"
+#      ControlPlane: "yes"
+#    template: "templates/aws-ocp-student-instance.template.yaml"

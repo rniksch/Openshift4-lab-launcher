@@ -1,0 +1,13 @@
+---
+# tasks file for ocp-3-11-init to install ocp using Ansible
+
+- name: Create the inventory aio file for the ocp ansible scripts
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: 
+    - src: inventory_aio.j2
+      dest: /root/inventory_aio

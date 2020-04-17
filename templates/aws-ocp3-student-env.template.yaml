@@ -1,0 +1,523 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Template for OpenShift Cluster Bootstrap (EC2 Instance, Security Groups and IAM)'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Cluster Information"
+      Parameters:
+      - PullSecretUser
+      - PullSecret
+      - SSHKey
+      - SubManagerUser
+      - SubManagerPassword
+      - AnsibleVaultPass
+      - IgnitionBucketName
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+      - VpcId
+      - RemoteAccessCIDR
+      - SubnetId
+      - HostedZoneName
+    - Label:
+        default: Cloud9 information
+      Parameters:
+        - CreateCloud9Instance
+        - Cloud9AutoStopInMin
+        - Cloud9InstanceType
+        - Cloud9UserPassword
+    - Label:
+        default: AWS Quick Start Configuration
+      Parameters:
+        - QSS3BucketName
+        - QSS3KeyPrefix
+    ParameterLabels:
+      PullSecretUser:
+        default: OCP service account for 3.11 container repo
+      PullSecret:
+        default: OCP pull secret
+      SSHKey:
+        default: Public ssh key
+      SubManagerUser:
+        default: Subscription manager username
+      SubManagerPassword:
+        default: Subscription manager password
+      AnsibleVaultPass:
+        default: Ansible Vault password
+      IgnitionBucketName:
+        default: S3 bucket for complete and ignitions
+      VpcId:
+        default: "VPC ID"
+      RemoteAccessCIDR:
+        default: "Allowed CIDR Source"
+      SubnetId:
+        default: "Public Subnet ID"
+      HostedZoneName:
+        default: "Public Hosted Zone Name"
+      CreateCloud9Instance:
+        default: Create Cloud9 instance?
+      Cloud9AutoStopInMin:
+        default: Cloud9 automatic stop time in minutes
+      Cloud9InstanceType:
+        default: Cloud9 instance type
+      Cloud9UserPassword:
+        default: Cloud9 user password
+      QSS3BucketName:
+        default: Quick Start S3 bucket name
+      QSS3KeyPrefix:
+        default: Quick Start S3 key prefix
+
+Parameters:
+  PullSecretUser:
+    Description: The username for pull Secret Service Account.
+    Default: ""
+    Type: String
+  PullSecret:
+    Description: The Secret used to pull the OpenShift containers from the secure registry.
+    Default: ""
+    Type: String
+    NoEcho: True
+  SSHKey:
+    Description: The public key to be added to the CoreOS boxes for ssh access.
+    Default: ""
+    Type: String
+  SubManagerUser:
+    Description: The username for RHEL subscription.
+    Default: ""
+    Type: String
+  SubManagerPassword:
+    Description: The password for RHEL subscription.
+    Default: ""
+    Type: String
+    NoEcho: True
+  AnsibleVaultPass:
+    Description: The password to lock the Ansible Vault
+    Default: "ocp-aws-3-11"
+    Type: String
+    NoEcho: True
+  IgnitionBucketName:
+    Default: my-s3-bucket
+    Description: Bucket Name where the IgnitionCondfig/Complete flags and files should be placed
+    Type: String
+  VpcId:
+    Description: The VPC-scoped resources will belong to this VPC.
+    Type: AWS::EC2::VPC::Id
+  RemoteAccessCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|1[0-9]|2[0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/0-32.
+    Default: 0.0.0.0/0
+    Description: CIDR block to allow access to the bootstrap node.
+    Type: String
+  SubnetId:
+    Description: The public subnet to launch the bootstrap node into.
+    Type: AWS::EC2::Subnet::Id
+  HostedZoneName:
+    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+    Default: "example.com"
+    Type: String
+  CreateCloud9Instance:
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
+    Type: String
+    AllowedValues: ["yes","no"]
+  Cloud9AutoStopInMin:
+    Description: The time the Cloud9 instance is automatically stopped after no use.
+    Default: 30
+    Type: Number
+  Cloud9InstanceType:
+    Description: Instance size of the Cloud9 instance for the student
+    AllowedPattern: ^[a-z][1-9][.][a-z0-9]+$
+    MinLength: '5'
+    MaxLength: '20'
+    Default: "t2.micro"
+    Type: String
+  Cloud9UserPassword:
+    Description: The password used to assign to the Cloud9 user
+    Default: ""
+    Type: String
+    NoEcho: True
+  QSS3BucketName:
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Type: String
+  QSS3KeyPrefix:
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: aws-ocp/
+    Type: String
+Mappings:
+  AWSAMIRegionMap:
+    us-east-2:
+      RHEL: ami-0cf433f9a817f63d3
+    us-east-1:
+      RHEL: ami-029c0fbe456d58bd1
+    us-west-2:
+      RHEL: ami-078a6a18fb73909b2
+    us-west-1:
+      RHEL: ami-07d8d14365439bc6e
+    eu-west-3:
+      RHEL: ami-018c55e9d34f949e9
+    eu-west-2:
+      RHEL: ami-0d8f9df7aa93d806e
+    eu-west-1:
+      RHEL: ami-065ec1e661d619058
+    eu-central-1:
+      RHEL: ami-06220be3176081cf0
+    eu-north-1:
+      RHEL: ami-a4fe74da
+    ap-northeast-2:
+      RHEL: ami-0708fd0ae9a663e02
+    ap-northeast-1:
+      RHEL: ami-0be4c0b05bbeb2afd
+    ap-southeast-2:
+      RHEL: ami-01448715c06d2edb5
+    ap-southeast-1:
+      RHEL: ami-02079c0159aade6b4
+    ca-central-1:
+      RHEL: ami-05508913d3360e9af
+    ap-south-1:
+      RHEL: ami-003b12a9a1ee83922
+    sa-east-1:
+      RHEL: ami-0102667d2046392a0
+
+Conditions:
+  CreateCloud9Instance: !Equals [!Ref CreateCloud9Instance, 'yes']
+
+Resources:
+  OCP311IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+          Action:
+          - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+      - PolicyName: !Join ["-", [!Sub "${AWS::StackName}", "OCP311", "policy"]]
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action: "ec2:Describe*"
+            Resource: "*"
+          - Effect: "Allow"
+            Action: "ec2:AttachVolume"
+            Resource: "*"
+          - Effect: "Allow"
+            Action: "ec2:DetachVolume"
+            Resource: "*"
+          - Effect: "Allow"
+            Action:
+              - "s3:GetObject"
+              - "s3:ListObject"
+              - "s3:ListBucket"
+              - "route53:ListHostedZones"
+              - "route53:ListResourceRecordSets"
+              - "route53:ChangeResourceRecordSets"
+              - "route53:GetChange"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "s3:PutObject"
+              - "s3:PutObjectAcl"
+              - "S3:DeleteObject"
+            Resource:
+              - !Sub 'arn:aws:s3:::${IgnitionBucketName}/*'
+              - !Sub 'arn:aws:s3:::${IgnitionBucketName}'
+
+  OCP311InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: "OCP311IAMRole"
+
+  OCP311SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Cluster Bootstrap Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: !Ref RemoteAccessCIDR
+      - IpProtocol: tcp
+        FromPort: 8443
+        ToPort: 8443
+        CidrIp: !Ref RemoteAccessCIDR
+      VpcId: !Ref VpcId
+
+  MasterIngressAllPorts:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt OCP311SecurityGroup.GroupId
+      Description: OpenShift Public IP all ports
+      FromPort: -1
+      ToPort: -1
+      IpProtocol: "-1"
+      CidrIp: !Sub "${OCP311Instance.PublicIp}/32"
+
+  OCP311PublicRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Sub "${AWS::StackName}.${HostedZoneName}"
+      ResourceRecords:
+      - !GetAtt OCP311Instance.PublicIp
+      TTL: "60"
+      Type: A
+
+  AppsOCP311PublicRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Sub "*.apps.${AWS::StackName}.${HostedZoneName}"
+      ResourceRecords:
+      - !GetAtt OCP311Instance.PublicIp
+      TTL: "60"
+      Type: A
+
+  SSHOCP311PublicRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Name: !Sub "ssh.${AWS::StackName}.${HostedZoneName}"
+      ResourceRecords:
+      - !GetAtt OCP311Instance.PublicIp
+      TTL: "60"
+      Type: A
+
+  OCP311Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          ocp_3_11_install:
+            - "config-ansible-ocp-3-11"
+            - "secure-ansible-ocp-3-11"
+        config-ansible-ocp-3-11:
+          files:
+            /root/.ocp_ansible/ocp-3-11-install.yml:
+              content: !Sub |
+                  # Base install for OCP311Instance
+                  - import_playbook: site-ocp-3-11.yml
+                    vars:
+                      ocp_3_11_init_rhel_subscription_username: ${SubManagerUser}
+                      ocp_3_11_init_rhel_subscription_password: ${SubManagerPassword}
+                      ocp_3_11_init_rhel_registry_username: ${PullSecretUser}
+                      ocp_3_11_init_rhel_registry_pull_secret: ${PullSecret}
+                      ocp_3_11_init_student_dns: ${AWS::StackName}.${HostedZoneName}
+              mode: "0400"
+            /root/.vault_pass.txt:
+              content: !Sub |
+                ${AnsibleVaultPass}
+              mode: "0400"
+            /root/.secureit.sh:
+              content:
+                ansible-vault encrypt /root/.ocp_ansible/ocp-3-11-install.yml --vault-id /root/.vault_pass.txt
+              mode: "0770"
+            /home/ec2-user/.ssh/authorized_keys:
+              content: !Sub ${SSHKey}
+              mode: "0400"
+              owner: ec2-user
+              group: ec2-user
+        secure-ansible-ocp-3-11:
+          commands:
+            'secure ansible playbook':
+              command: '/root/.secureit.sh'
+              ignoreErrors: 'false'
+    Properties:
+      ImageId: !FindInMap
+          - AWSAMIRegionMap
+          - !Ref AWS::Region
+          - RHEL
+      IamInstanceProfile: !Ref OCP311InstanceProfile
+      InstanceType: "i3.large"
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: True
+        DeviceIndex: "0"
+        GroupSet:
+        - !Ref "OCP311SecurityGroup"
+        SubnetId: !Ref "SubnetId"
+      UserData: !Base64
+          'Fn::Sub':
+            - >
+              #!/bin/bash -x
+
+              #CFN Functions
+
+              function cfn_fail
+
+              {
+
+              cfn-signal -e 1 --stack ${AWS::StackName} --region ${AWS::Region}
+              --resource OCP311Instance
+
+              exit 1
+
+              }
+
+              function cfn_success
+
+              {
+
+              cfn-signal -e 0 --stack ${AWS::StackName} --region ${AWS::Region}
+              --resource OCP311Instance
+
+              exit 0
+
+              }
+
+              S3URI=https://${QSS3BucketName}.${S3Region}.amazonaws.com/${QSS3KeyPrefix}
+
+              yum install -y git
+
+              echo $PATH
+
+              PATH=/opt/aws/bin:$PATH
+
+              echo $PATH
+              echo \'[Cloning: Load QuickStart Common Utils]\'
+
+              git clone
+              https://github.com/aws-quickstart/quickstart-linux-utilities.git
+
+              source /quickstart-linux-utilities/quickstart-cfn-tools.source
+
+              echo \'[Loaded: Load QuickStart Common Utils]\'
+
+              echo \'[Update Operating System]\'
+
+              qs_update-os || qs_err
+
+              qs_bootstrap_pip || qs_err
+
+              qs_aws-cfn-bootstrap || qs_err
+
+              hostnamectl set-hostname --static ${AWS::StackName}.${HostedZoneName} &> /var/log/hostname_update.log || qa_err "Hostname change failed"
+
+              pip install virtualenv &> /var/log/userdata.virtualenv_install.log || qs_err " virtualenv install failed "
+
+              virtualenv ~/venv &> /var/log/userdata.create_venv.log || qs_err " creating venv failed "
+
+              source ~/venv/bin/activate &> /var/log/userdata.activate_venv.log || qs_err " activate venv failed "
+
+              pip install awscli &> /var/log/userdata.awscli_install.log || qs_err " awscli install failed "
+
+              pip install boto3 &> /var/log/userdata.boto3_install.log
+
+              pip install ansible &> /var/log/userdata.ansible_install.log || qs_err " ansible install failed "
+
+              pip install passlib &> /var/log/userdata.passlib_install.log || qs_err " passlib install failed "
+
+              pip install selinux &> /var/log/userdata.selinux_install.log || qs_err " selinux install failed "
+
+              mkdir ~/.ocp_ansible
+
+              aws s3 sync s3://${QSS3BucketName}/${QSS3KeyPrefix}scripts/ ~/.ocp_ansible/
+
+              cfn-init -v --stack ${AWS::StackName} --resource
+              OCP311Instance --configsets ocp_3_11_install
+              --region ${AWS::Region} || cfn_fail
+
+              echo "ocpadmin" > /tmp/kubeadmin-password
+
+              ansible localhost -m "aws_s3" -a "bucket=${IgnitionBucketName}  object=/${AWS::StackName}/auth/kubeadmin-password mode=put src=/tmp/kubeadmin-password permission=authenticated-read" &> /var/log/ansible_s3_upload.log || qs_err " ansible S3 upload failed "
+
+              rm -f /tmp/kubeadmin-password
+
+              export ANSIBLE_VAULT_PASSWORD_FILE="/root/.vault_pass.txt"
+
+              ansible-playbook /root/.ocp_ansible/ocp-3-11-install.yml &> /var/log/ansible_3_11_prep.log || qs_err " ansible execution failed "
+
+              ansible-playbook -i /root/inventory_aio /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml &> /var/log/ansible_3_11_pre_req.log || qs_err " ansible OCP pre-req execution failed "
+
+              ansible-playbook -i /root/inventory_aio /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml &> /var/log/ansible_3_11_install.log || qs_err " ansible OCP execution failed "
+
+              RETURN=$?
+
+              if [ $RETURN -eq 0 ]; then
+
+              echo "success" > /tmp/complete;
+
+              ansible localhost -m "aws_s3" -a "bucket=${IgnitionBucketName}  object=/${AWS::StackName}/completed mode=put src=/tmp/complete permission=authenticated-read" &> /var/log/ansible_s3_upload_complete.log || qs_err " ansible S3 upload failed "
+
+              ansible localhost -m "aws_s3" -a "bucket=${IgnitionBucketName}  object=/${AWS::StackName}/building mode=delobj" &> /var/log/ansible_s3_cleanup.log || qs_err " ansible S3 cleanup failed "
+
+              else
+
+              echo "failed" > /tmp/complete;
+
+              fi
+
+              rm -rf /root/.secureit.sh
+
+              cat /home/ec2-user/.ssh/authorized_keys
+
+              [ $(qs_status) == 0 ] && cfn_success || cfn_fail
+            - S3Region: s3
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}
+  Cloud9User:
+    Condition: CreateCloud9Instance
+    Type: AWS::IAM::User
+    Properties:
+      LoginProfile:
+        Password: !Ref Cloud9UserPassword
+      UserName: !Sub ${AWS::StackName}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCloud9EnvironmentMember
+
+  Cloud9Instance:
+    Condition: CreateCloud9Instance
+    DependsOn: OCP311Instance
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      AutomaticStopTimeMinutes: !Ref Cloud9AutoStopInMin
+      Description: !Sub '${AWS::StackName} Cloud9 deployment'
+      InstanceType: !Ref Cloud9InstanceType
+      Name: !Sub ${AWS::StackName}
+      OwnerArn: !GetAtt Cloud9User.Arn
+      SubnetId: !Ref SubnetId
+
+Outputs:
+  OCP311InstanceId:
+    Description: The OCP.311 Instance ID.
+    Value: !Ref OCP311Instance
+
+  OCP311InstancePublicIp:
+    Description: The OCP 3.11 node public IP address.
+    Value: !GetAtt OCP311Instance.PublicIp
+
+  OCP311InstancePrivateIp:
+    Description: The OCP 3.11 node private IP address.
+    Value: !GetAtt OCP311Instance.PrivateIp

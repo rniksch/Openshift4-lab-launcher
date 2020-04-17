@@ -1,0 +1,163 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploys Lambda functions required for the AWS OpenShift labs
+Parameters:
+  LambdaZipsBucketName:
+    Description: Bucket Name where the lambda zip files should be placed
+    Type: String
+  CopyZipsRoleArn:
+    Description: CloudFormation CopyZips Exception Arn
+    Type: String
+  StackDirectorRoleArn:
+    Description: Lambda to deploy all of the OCP stacks
+    Type: String
+  AuthBucket:
+    Description: S3 bucket and or folder location in which auth folder exists
+    Type: String
+  ClusterName:
+    Description: A short, representative cluster name to use for host names and other identifying names.
+    Type: String
+  NumStudents:
+    Description: The number of which student environment to provision for the lab.
+    Type: String
+  HostedZoneName:
+    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+    Type: String
+  OpenShiftMirrorURL:
+    Description: Base Mirror URL for downloading the OpenShift binaries
+    Type: String
+  OpenShiftVersion:
+    Description: The version of OpenShift to deploy for the lab.
+    Type: String
+  OpenShiftClientBinary:
+    Description: The specific Binary to download from the mirror
+    Type: String
+  OpenShiftInstallBinary:
+    Description: The specific installation Binary to download from the mirror
+    Type: String
+  PullSecret:
+    Description: The Secret used to pull the OpenShift containers from the secure registry.
+    Default: ""
+    Type: String
+    NoEcho: True
+  SSHKey:
+    Description: The public key to be added to the CoreOS boxes for ssh access.
+    Default: ""
+    Type: String
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: 'Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).'
+    Default: aws-quickstart
+    Description: 'S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).'
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/.]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), dots(.) and forward slash (/).
+    Default: aws-ocp/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), dots(.) and
+      forward slash (/).
+    Type: String
+  CreateCloud9Instance:
+    Description: AWS Cloud9 is a cloud-based integrated development environment (IDE)
+    Default: "no"
+    Type: String
+    AllowedValues: ["yes","no"]
+  LogLevel:
+    Description: Lambda log level
+    Default: "DEBUG"
+    AllowedValues:
+      - "INFO"
+      - "DEBUG"
+      - "ERROR"
+      - "WARNING"
+    Type: String
+
+Resources:
+  CopyZipsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Copies objects from a source S3 bucket to a destination
+      Handler: index.handler
+      Runtime: python3.7
+      Role: !Ref CopyZipsRoleArn
+      Timeout: 900
+      Code:
+        ZipFile: |
+          import cfnresponse
+          import logging
+          import boto3
+          logger = logging.getLogger(__name__)
+          def copy_objects(source_bucket, dest_bucket, prefix, objects):
+              s3 = boto3.client('s3')
+              for o in objects:
+                  key = prefix + o
+                  copy_source = {'Bucket': source_bucket, 'Key': key}
+                  logging.info(f'copy_source: {copy_source}\ndest_bucket: {dest_bucket}\nkey: {key}')
+                  s3.copy_object(CopySource=copy_source, Bucket=dest_bucket, Key=key)
+          def delete_objects(bucket, prefix, objects):
+              s3 = boto3.client('s3')
+              objects = {'Objects': [{'Key': prefix + o} for o in objects]}
+              s3.delete_objects(Bucket=bucket, Delete=objects)
+          def handler(event, context):
+              logger.debug(event)
+              status = cfnresponse.SUCCESS
+              try:
+                  if event['RequestType'] == 'Delete':
+                      delete_objects(event['ResourceProperties']['DestBucket'], event['ResourceProperties']['Prefix'],
+                                     event['ResourceProperties']['Objects'])
+                  else:
+                      copy_objects(event['ResourceProperties']['SourceBucket'], event['ResourceProperties']['DestBucket'],
+                                   event['ResourceProperties']['Prefix'], event['ResourceProperties']['Objects'])
+              except Exception:
+                  logging.error('Unhandled exception', exc_info=True)
+                  status = cfnresponse.FAILED
+              finally:
+                  cfnresponse.send(event, context, status, {}, None)
+  CopyZips:
+    Type: Custom::CopyZips
+    Properties:
+      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+      DestBucket: !Ref LambdaZipsBucketName
+      SourceBucket: !Ref 'QSS3BucketName'
+      Prefix: !Ref 'QSS3KeyPrefix'
+      Objects:
+      - functions/packages/StackDirector/lambda.zip
+
+  StackDirectorLambda:
+    DependsOn: CopyZips
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: A Cron Lambda to check if the student environments are ready.
+      Handler: lambda_handler.handler
+      MemorySize: 512
+      Role: !Ref StackDirectorRoleArn
+      Runtime: python3.7
+      Timeout: 900
+      Environment:
+        Variables:
+          LogLevel: !Ref LogLevel
+          AuthBucket: !Ref AuthBucket
+          ClusterName: !Ref ClusterName
+          NumStudents: !Ref NumStudents
+          HostedZoneName: !Ref HostedZoneName
+          OpenShiftMirrorURL: !Ref OpenShiftMirrorURL
+          OpenShiftVersion: !Ref OpenShiftVersion
+          OpenShiftClientBinary: !Ref OpenShiftClientBinary
+          QSS3BucketName: !Ref QSS3BucketName
+          QSS3KeyPrefix: !Ref QSS3KeyPrefix
+          OpenShiftInstallBinary: !Ref OpenShiftInstallBinary
+          PullSecret: !Ref PullSecret
+          SSHKey: !Ref SSHKey
+          CreateCloud9Instance: !Ref CreateCloud9Instance
+      Code:
+        S3Bucket: !Ref LambdaZipsBucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/StackDirector/lambda.zip'
+
+Outputs:
+  StackDirectorLambdaArn:
+    Value: !GetAtt StackDirectorLambda.Arn
