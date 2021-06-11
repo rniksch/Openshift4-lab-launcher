@@ -88,8 +88,9 @@ Parameters:
     AllowedValues:
       - "3.11"
       - "4.2"
-      - "4.3"
-    Default: "3.11"
+      - "4.3"      
+      - "4.6"
+    Default: "4.6"
     Type: String
   MasterStack:
     Description: The Master Stack of which is calling this student Cloud Formation stack

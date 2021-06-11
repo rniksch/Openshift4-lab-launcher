@@ -87,7 +87,8 @@ Resources:
                   - iam:CreateInstanceProfile
                   - iam:DeleteInstanceProfile
                   - iam:AddRoleToInstanceProfile
-                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile	
+                  - iam:CreateServiceLinkedRole
                   - lambda:CreateFunction
                   - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
@@ -100,7 +101,9 @@ Resources:
                   - ec2:DescribeVpcs
                   - ec2:DescribeImages
                   - ec2:DescribeSubnets
-                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSecurityGroups	
+                  - ec2:DescribeInternetGateways	
+                  - ec2:DescribeAccountAttributes
                   - ec2:CreateSecurityGroup
                   - ec2:AuthorizeSecurityGroupIngress
                   - ec2:RevokeSecurityGroupIngress
