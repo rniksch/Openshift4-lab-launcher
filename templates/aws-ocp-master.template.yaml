@@ -109,7 +109,8 @@ Parameters:
       - "3.11"
       - "4.2"
       - "4.3"
-    Default: "4.2"
+      - "4.6"
+    Default: "4.6"
     Type: String
   ClusterName:
     Description: A short, representative cluster name to use for host names and other identifying names. This
@@ -121,7 +122,7 @@ Parameters:
     MinLength: 1
     Type: String
   HostedZoneName:
-    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period.
+    Description: The Route53 zone to register the targets with, such as example.com. Omit the trailing period. You must create this Route53 Zone before building this Stack.
     Default: "example.com"
     Type: String
   NumStudents:
@@ -142,9 +143,8 @@ Parameters:
     Default: ""
     Type: String
   RhcosAmi:
-    Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
-    Type: AWS::EC2::Image::Id
-    Default: "ami-08e10b201e19fd5e7"
+    Description: (Optional) Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap. Leave this empty to use this Template's to choose the right AMI
+    Type: String
   SubManagerUser:
     Description: The username for RHEL subscription. NOTE - not needed for 4.X installs.
     Default: ""
@@ -196,8 +196,12 @@ Parameters:
 
 Conditions:
     OCP4:
-      !Or [ !Equals [!Ref OpenShiftVersion, '4.2'], !Equals [!Ref OpenShiftVersion, '4.3']]
+      !Or [ !Equals [!Ref OpenShiftVersion, '4.2'], !Equals [!Ref OpenShiftVersion, '4.3'], !Equals [!Ref OpenShiftVersion, '4.6']]
     OCP3: !Equals [!Ref OpenShiftVersion, '3.11']
+    NoRhcosAmiParameter:
+      Fn::Equals:
+        - !Ref RhcosAmi
+        - ""
 
 Mappings:
   OpenShiftVersion:
@@ -216,6 +220,113 @@ Mappings:
       OpenShiftClientBinary: "openshift-client"
       StudentTemplate: "aws-ocp4-student-env.template.yaml"
 
+    "4.3":
+      OpenShiftMirrorURL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+      OpenShiftVersionNum: "4.3.17"
+      OpenShiftInstallBinary: "openshift-install"
+      OpenShiftClientBinary: "openshift-client"
+      StudentTemplate: "aws-ocp4-student-env.template.yaml"
+    
+    "4.6":
+      OpenShiftMirrorURL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+      OpenShiftVersionNum: "4.6.8"
+      OpenShiftInstallBinary: "openshift-install"
+      OpenShiftClientBinary: "openshift-client"
+      StudentTemplate: "aws-ocp4-student-env.template.yaml"
+
+
+  #
+  # Removing hyphens because Keys need to be alphanumeric in the 2nd level mapping. See RhcosAmiMap
+  RegionDehyphen:
+    us-east-1:
+      Value: useast1
+    us-east-2:
+      Value: useast2
+    us-west-1:
+      Value: uswest1
+    us-west-2:
+      Value: uswest2
+    sa-east-1:
+      Value: saeast1
+    eu-west-3:
+      Value: euwest3
+    eu-north-1:
+      Value: eunorth1
+    ca-central1:
+      Value: cacentral1
+    ap-southeast-2:
+      Value: apsoutheast2
+    ap-southeast-1:
+      Value: apsoutheast1
+    ap-south-1:
+      Value: apsouth1
+    ap-northeast-2:
+      Value: apnortheast2
+    ap-northeast-1:
+      Value: apnortheast1
+    me-south-1:
+      Value: mesouth1
+
+
+  RhcosAmiMap:
+    # 3.11 - RHEL-7.7_HVM-20190923-x86_64-0-Hourly2-GP2
+    # 4.2  - rhcos-42.80.20191002.0-hvm
+    # 4.3  - rhcos-43.81.202001142154.0-hvm
+    "4.2":
+      useast1: ami-01e7fdcb66157b224
+      useast2: ami-0bc59aaa7363b805d
+      uswest1: ami-0ba912f53c1fdcdf0
+      uswest2: ami-08e10b201e19fd5e7
+      saeast1: ami-03f6b71e93e630dab
+      euwest3: ami-058ad17da14ff4d0d9
+      euwest2: ami-00c74e593125e0096
+      euwest1: ami-04370efd78434697b
+      eunorth1: ami-0175e9c9d258cc11d
+      eucentral1: ami-092b69120ecf915ed
+      cacentral1: ami-04419691da69850cf
+      apsoutheast2: ami-0391e92574fb09e08
+      apsoutheast1: ami-0d76ac0ebaac29e404
+      apsouth1: ami-0bd772ba746948d9a
+      apnortheast2: ami-014514ae47679721b
+      apnortheast1: ami-0426ca3481a088c7b
+
+    "4.3":
+      useast1: ami-06f85a7940faa3217
+      saeast1: ami-0c80d785b30eef121
+      useast2: ami-04a79d8d7cfa540cc
+      uswest1: ami-0633b392e8eff25e7
+      uswest2: ami-0d231993dddc5cd2e
+      euwest3: ami-0049e16104f360df6
+      mesouth1: ami-0b03ea038629fd02e
+      euwest2: ami-0eef98c447b85ffcd
+      euwest1: ami-0e95125b57fa63b0d
+      eunorth1: ami-06b7087b2768f644a
+      eucentral1: ami-0ceea534b63224411
+      cacentral1: ami-0f6d943a1fa9172fd
+      apsoutheast2: ami-08929f33bfab49b83
+      apsoutheast1: ami-086b93722336bd1d9
+      apsouth1: ami-0bf62e963a473068e
+      apnortheast2: ami-0ba4f9a0358bcb44a
+      apnortheast1: ami-023d0452866845125
+
+    "4.6":
+      useast1: ami-009cbe327d180d666
+      saeast1: ami-081f13881a31af160
+      useast2: ami-0346f64579665ce3c
+      uswest1: ami-07c185c787029b522
+      uswest2: ami-01105d480bb47353f
+      euwest3: ami-083f281d2864a71de
+      mesouth1: ami-05a6ae5eadb5b244d
+      euwest2: ami-0291fd4543d6940f4
+      euwest1: ami-0e514a30ad261c978
+      eunorth1: ami-06d01bfaf14ad66a3
+      eucentral1: ami-0a51f61236e6fc6f2
+      cacentral1: ami-0f5825ef10c76de32
+      apsoutheast2: ami-0e3e2b2ea00c35823
+      apsoutheast1: ami-0a6a0f1f6106708c4
+      apsouth1: ami-09253ba33f828d47f
+      apnortheast2: ami-01e554d608de6087a
+      apnortheast1: ami-0cb46ba6945dbfebe
 
 Resources:
   VPCStack:
@@ -300,7 +411,16 @@ Resources:
       OpenShiftVersion: !Ref OpenShiftVersion
       NumStacks: !Ref NumStudents
       HostedZoneName: !Ref HostedZoneName
-      RhcosAmi: !Ref RhcosAmi
+      RhcosAmi: !If
+        - NoRhcosAmiParameter
+        - !FindInMap
+          - RhcosAmiMap
+          - !Ref OpenShiftVersion
+          - !FindInMap
+            - RegionDehyphen
+            - !Ref AWS::Region
+            - Value
+        - !Ref RhcosAmi
       IgnitionLocation: !If [OCP4, !Sub "s3://${IgnitionBucket}", "" ]
       CreateCloud9Instance: !Join ["", !Ref CreateCloud9Instance]
       Cloud9AutoStopInMin: !Ref Cloud9AutoStopInMin
@@ -357,6 +477,7 @@ Resources:
         Fn::GetAtt:
           - "ValidateEvent"
           - "Arn"
+
 Outputs:
   WorkshopWebpage:
     Value: !Sub 'https://${IgnitionBucket}.s3.amazonaws.com/workshop.html'
