@@ -110,6 +110,7 @@ Parameters:
       - "4.2"
       - "4.3"
       - "4.6"
+      - "4.7"
     Default: "4.6"
     Type: String
   ClusterName:
@@ -196,7 +197,7 @@ Parameters:
 
 Conditions:
     OCP4:
-      !Or [ !Equals [!Ref OpenShiftVersion, '4.2'], !Equals [!Ref OpenShiftVersion, '4.3'], !Equals [!Ref OpenShiftVersion, '4.6']]
+      !Or [ !Equals [!Ref OpenShiftVersion, '4.2'], !Equals [!Ref OpenShiftVersion, '4.3'], !Equals [!Ref OpenShiftVersion, '4.6'], !Equals [!Ref OpenShiftVersion, '4.7']]
     OCP3: !Equals [!Ref OpenShiftVersion, '3.11']
     NoRhcosAmiParameter:
       Fn::Equals:
@@ -233,6 +234,13 @@ Mappings:
       OpenShiftInstallBinary: "openshift-install"
       OpenShiftClientBinary: "openshift-client"
       StudentTemplate: "aws-ocp4-student-env.template.yaml"
+
+    "4.7":
+      OpenShiftMirrorURL:  "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+      OpenShiftVersionNum: "4.7.16"
+      OpenShiftInstallBinary: "openshift-install"
+      OpenShiftClientBinary: "openshift-client"
+      StudentTemplate: "aws-ocp4-student-env.template.yaml"  
 
 
   #
@@ -327,6 +335,26 @@ Mappings:
       apsouth1: ami-09253ba33f828d47f
       apnortheast2: ami-01e554d608de6087a
       apnortheast1: ami-0cb46ba6945dbfebe
+
+
+    "4.7":
+      useast1: ami-0567566f195f2763a
+      saeast1: ami-0eb5610a140e20a64
+      useast2: ami-05ccde2b7b047b6fe
+      uswest1: ami-04df16be999464f56
+      uswest2: ami-0015f6e80926cb0ae
+      euwest3: ami-0bdb7660d4cb88434
+      euwest2: ami-0828b653a96a69b15
+      euwest1: ami-050e1de8339b1718e
+      eunorth1: ami-044beffab204fdec2
+      eucentral1: ami-030c2bbaf47f1d01b
+      cacentral1: ami-0f502c78243a59edc
+      apsoutheast2: ami-0318dcd67dade016c
+      apsoutheast1: ami-0a76059fd95738295
+      apsouth1: ami-052077a2949cc13b7
+      apnortheast2: ami-0a9b33b2e6388287a
+      apnortheast1: ami-08c976a3cc95f0483
+      #mesouth1: ami-05a6ae5eadb5b244d
 
 Resources:
   VPCStack:

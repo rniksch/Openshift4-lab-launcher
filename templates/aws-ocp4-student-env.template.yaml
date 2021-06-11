@@ -90,6 +90,7 @@ Parameters:
       - "4.2"
       - "4.3"      
       - "4.6"
+      - "4.7"
     Default: "4.6"
     Type: String
   MasterStack:
